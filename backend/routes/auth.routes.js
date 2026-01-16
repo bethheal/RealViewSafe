@@ -3,7 +3,7 @@ import {signup} from "../controllers/signupController.js";
 import {login} from "../controllers/loginController.js";
 import {googleAuth} from "../controllers/googleAuth.js";
 import  requestReset  from '../controllers/requestResetController.js';
-import resetPass from "../controllers/resetPass.js";
+import  {resetPasswordWithToken} from "../controllers/resetPass.js";
 import { protect } from "../middleware/auth.js";
 import { allowRoles } from "../middleware/role.middleware.js";
 import { upload } from "../middleware/upload.js";
@@ -33,6 +33,6 @@ router.post("/signup", signup);
 router.post("/login", login);
 router.post("/google", googleAuth);
 router.post("/forgot-password", requestReset);
-router.post("/reset-password/:token", resetPass);
+router.post("/reset-password/:token", resetPasswordWithToken);
 
 export default router;

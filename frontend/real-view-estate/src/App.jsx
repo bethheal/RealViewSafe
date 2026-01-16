@@ -31,11 +31,11 @@ import Subscription from "./pages/agent/Subscription";
 import AgentProfile from "./pages/agent/AgentProfile";
 import PropertyDraft from "./pages/agent/PropertyDrafts";
 import AdminLogin from "./pages/Auth/AdminLogin";
-import AdminAgents from "./pages/admin/Agents";
 import AdminBuyers from "./pages/admin/AdminBuyers";
 import AdminProperties from "./pages/admin/AdminProperties";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminProfile from "./pages/admin/AdminProfile";
+import AdminAgents from "./pages/admin/AdminAgents";
 
 function App() {
   return (

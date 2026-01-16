@@ -75,10 +75,36 @@ if (role === "BUYER") {
         email: user.email,
         roles: user.roles.map((r) => r.name),
         primaryRole: role,
+            mustChangePassword: user.mustChangePassword, // ✅ ADD THIS
+
       },
     });
   } catch (err) {
     console.error("LOGIN ERROR:", err);
     return res.status(500).json({ message: "Login failed" });
   }
+};
+// POST /auth/change-password  (logged-in user)
+export const changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword) return res.status(400).json({ message: "newPassword is required" });
+
+  const userId = req.user.id;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) return res.status(400).json({ message: "No password set for this user" });
+
+  // optional: only require currentPassword if they already had one and not first-time
+  if (!user.mustChangePassword) {
+    const ok = await bcrypt.compare(currentPassword || "", user.passwordHash);
+    if (!ok) return res.status(401).json({ message: "Current password is wrong" });
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: hash, mustChangePassword: false },
+  });
+
+  res.json({ message: "Password changed successfully" });
 };

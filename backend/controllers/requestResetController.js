@@ -11,7 +11,7 @@ const forgotPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(200).json({
     message: "Password reset link sent",
       });
     }
@@ -34,7 +34,9 @@ const forgotPassword = async (req, res) => {
     });
 
     // 5️⃣ Send email (Resend / Nodemailer / etc)
-    // await sendResetEmail(email, token);
+    await sendResetEmail(email, token);
+    const link = `${process.env.APP_URL}/reset-password?token=${token}`;
+
 
     return res.json({
       message: "Password reset link sent",
