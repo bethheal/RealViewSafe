@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Full-screen auth background */
+.auth-bg {
+  background-image: url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Glassmorphism card */
+.glass {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+/* Inputs */
+.input {
+  @apply w-full px-4 py-3 rounded-lg bg-white/90 text-gray-900
+  focus:outline-none focus:ring-2 focus:ring-orange-500;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold transition;
+}
+
+/* Role toggle */
+.role-btn {
+  @apply px-5 py-2 rounded-full text-sm font-medium transition;
+}
+
+.icon-left {
+  @apply absolute right-3 top-1/2 -translate-y-1/2 text-black/50;
+}
+
+.icon-right {
+  @apply absolute right-2 top-1/2 -translate-y-1/2 text-black/60 hover:text-white;
+}
