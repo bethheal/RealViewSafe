@@ -1,33 +1,56 @@
 import prisma from "../prisma/client.js";
 
 /**
- * Dashboard summary
+ * GET /admin/dashboard
  */
 export const dashboard = async (req, res) => {
-  const agents = await prisma.agentProfile.count();
-  const buyers = await prisma.buyerProfile.count();
+  const [
+    agents,
+    buyers,
+    pending,
+    approved,
+    rejected,
+    sold,
+    activeSubs,
+    recentPending,
+  ] = await Promise.all([
+    prisma.agentProfile.count(),
+    prisma.buyerProfile.count(),
+    prisma.property.count({ where: { status: "PENDING" } }),
+    prisma.property.count({ where: { status: "APPROVED" } }),
+    prisma.property.count({ where: { status: "REJECTED" } }),
+    prisma.property.count({ where: { status: "SOLD" } }),
+    prisma.subscription.count({
+      where: {
+        expiresAt: { gt: new Date() },
+        plan: { not: "FREE" },
+      },
+    }),
+    prisma.property.findMany({
+      where: { status: "PENDING" },
+      include: {
+        agent: { include: { user: { select: { fullName: true, email: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+  ]);
 
-  const pending = await prisma.property.count({ where: { status: "PENDING" } });
-  const approved = await prisma.property.count({ where: { status: "APPROVED" } });
-  const rejected = await prisma.property.count({ where: { status: "REJECTED" } });
-
-  const activeSubs = await prisma.subscription.count({
-    where: {
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
+  res.json({
+    stats: { agents, buyers, pending, approved, rejected, sold, activeSubs },
+    recentPending,
   });
-
-  res.json({ agents, buyers, pending, approved, rejected, activeSubs });
 };
 
 /**
- * List Agents (with User + Subscription)
+ * GET /admin/agents
  */
 export const listAgents = async (req, res) => {
   const agents = await prisma.agentProfile.findMany({
     include: {
-      user: { select: { id: true, fullName: true, email: true, phone: true, createdAt: true } },
+      user: { select: { fullName: true, email: true, phone: true, createdAt: true } },
       subscription: true,
+      _count: { select: { properties: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -36,16 +59,17 @@ export const listAgents = async (req, res) => {
 };
 
 /**
- * Suspend / Unsuspend Agent
+ * PATCH /admin/agents/:id/suspend
+ * body: { suspended: boolean }
  */
-export const setAgentSuspended = async (req, res) => {
+export const suspendAgent = async (req, res) => {
   const { suspended } = req.body;
 
   const updated = await prisma.agentProfile.update({
     where: { id: req.params.id },
     data: { suspended: Boolean(suspended) },
     include: {
-      user: { select: { id: true, fullName: true, email: true } },
+      user: { select: { fullName: true, email: true } },
       subscription: true,
     },
   });
@@ -54,12 +78,23 @@ export const setAgentSuspended = async (req, res) => {
 };
 
 /**
- * List Buyers
+ * GET /admin/buyers
+ * returns buyers + purchases + property + agent
  */
-export const listBuyers = async (req, res) => {
+export const listBuyersWithPurchases = async (req, res) => {
   const buyers = await prisma.buyerProfile.findMany({
     include: {
-      user: { select: { id: true, fullName: true, email: true, phone: true, createdAt: true } },
+      user: { select: { fullName: true, email: true, phone: true, createdAt: true } },
+      purchases: {
+        include: {
+          property: {
+            include: {
+              agent: { include: { user: { select: { fullName: true, email: true } } } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -68,36 +103,34 @@ export const listBuyers = async (req, res) => {
 };
 
 /**
- * Pending properties queue (admin review)
+ * GET /admin/properties
+ * pending queue
  */
 export const listPendingProperties = async (req, res) => {
-  const properties = await prisma.property.findMany({
+  const props = await prisma.property.findMany({
     where: { status: "PENDING" },
     include: {
-      agent: {
-        include: {
-          user: { select: { id: true, fullName: true, email: true } },
-        },
-      },
+      agent: { include: { user: { select: { fullName: true, email: true, phone: true } } } },
+      images: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  res.json(properties);
+  res.json(props);
 };
 
 /**
- * Approve / Reject property
- * body: { action: "APPROVED" | "REJECTED", reason?: string }
+ * PATCH /admin/properties/:id/review
+ * body: { action: "APPROVED"|"REJECTED", reason?: string }
  */
 export const reviewProperty = async (req, res) => {
   const { action, reason } = req.body;
 
   if (!["APPROVED", "REJECTED"].includes(action)) {
-    return res.status(400).json({ message: "Invalid action. Use APPROVED or REJECTED." });
+    return res.status(400).json({ message: "Invalid action" });
   }
 
-  const property = await prisma.property.update({
+  const updated = await prisma.property.update({
     where: { id: req.params.id },
     data: {
       status: action,
@@ -105,16 +138,17 @@ export const reviewProperty = async (req, res) => {
     },
   });
 
-  res.json(property);
+  res.json(updated);
 };
 
 /**
- * List subscriptions (agent + user + subscription)
+ * GET /admin/subscriptions
+ * list agents + subscription
  */
 export const listSubscriptions = async (req, res) => {
   const agents = await prisma.agentProfile.findMany({
     include: {
-      user: { select: { id: true, fullName: true, email: true } },
+      user: { select: { fullName: true, email: true, phone: true } },
       subscription: true,
     },
     orderBy: { createdAt: "desc" },
@@ -124,16 +158,14 @@ export const listSubscriptions = async (req, res) => {
 };
 
 /**
- * Assign / Update subscription
- * body: { agentId, plan, days? }
+ * POST /admin/subscriptions
+ * body: { agentId, plan, days }
  */
 export const assignSubscription = async (req, res) => {
   const { agentId, plan, days } = req.body;
 
-  const validPlans = ["FREE", "BASIC", "PRO", "PREMIUM"];
-  if (!validPlans.includes(plan)) {
-    return res.status(400).json({ message: "Invalid plan" });
-  }
+  const allowed = ["FREE", "BASIC", "PRO", "PREMIUM"];
+  if (!allowed.includes(plan)) return res.status(400).json({ message: "Invalid plan" });
 
   let expiresAt = null;
   if (typeof days === "number" && days > 0) {
@@ -146,6 +178,22 @@ export const assignSubscription = async (req, res) => {
     update: { plan, expiresAt },
     create: { agentId, plan, expiresAt },
   });
+
+  // optional: if plan is FREE or expiresAt null/past, suspend agent immediately
+  const shouldSuspend =
+    plan === "FREE" || (expiresAt && expiresAt <= new Date());
+
+  if (shouldSuspend) {
+    await prisma.agentProfile.update({
+      where: { id: agentId },
+      data: { suspended: true },
+    });
+  } else {
+    await prisma.agentProfile.update({
+      where: { id: agentId },
+      data: { suspended: false },
+    });
+  }
 
   res.json(sub);
 };

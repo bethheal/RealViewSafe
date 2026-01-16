@@ -17,52 +17,47 @@ export const login = async (req, res) => {
     if (!user || !user.passwordHash) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-    if (role === "AGENT") {
-  await prisma.agentProfile.upsert({
-    where: { userId: user.id },
-    update: {},
-    create: { userId: user.id },
-  });
-}
-
-if (role === "BUYER") {
-  await prisma.buyerProfile.upsert({
-    where: { userId: user.id },
-    update: {},
-    create: { userId: user.id },
-  });
-}
-
 
     const valid = await bcrypt.compare(cleanPassword, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // 🔥 AUTO-ASSIGN ROLE IF MISSING
-    const hasRole = user.roles.some((r) => r.name === role);
+    const roles = user.roles.map((r) => r.name);
 
-    if (!hasRole) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          roles: {
-            connectOrCreate: {
-              where: { name: role },
-              create: { name: role },
-            },
-          },
-        },
+    // ✅ If client provides role (AGENT/BUYER), validate it
+    // ✅ If not provided (admin login), infer it
+    let primaryRole = role;
+
+    if (!primaryRole) {
+      // infer: choose ADMIN first if present, else first role
+      primaryRole = roles.includes("ADMIN") ? "ADMIN" : (roles[0] || null);
+    }
+
+    // ✅ Optional: allow creating agent/buyer profile ONLY if role is valid
+    if (primaryRole === "AGENT") {
+      await prisma.agentProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
       });
+    }
 
-      user.roles.push({ name: role });
+    if (primaryRole === "BUYER") {
+      await prisma.buyerProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
+      });
+    }
+
+    // ✅ security: ensure user actually has the role they claim (except when inferred)
+    if (role && !roles.includes(role)) {
+      return res.status(403).json({ message: "You are not authorized for this role" });
     }
 
     const token = jwt.sign(
-      {
-        id: user.id,
-        roles: user.roles.map((r) => r.name),
-      },
+      { id: user.id, roles },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -73,10 +68,9 @@ if (role === "BUYER") {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        roles: user.roles.map((r) => r.name),
-        primaryRole: role,
-            mustChangePassword: user.mustChangePassword, // ✅ ADD THIS
-
+        roles,
+        primaryRole,
+        mustChangePassword: user.mustChangePassword,
       },
     });
   } catch (err) {
@@ -84,6 +78,7 @@ if (role === "BUYER") {
     return res.status(500).json({ message: "Login failed" });
   }
 };
+
 // POST /auth/change-password  (logged-in user)
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;

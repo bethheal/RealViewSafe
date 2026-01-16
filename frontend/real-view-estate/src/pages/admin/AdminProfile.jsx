@@ -1,23 +1,28 @@
-import Reacr from "react"
-import Card from "../../components/ui/Card";
-import Input from "../../components/ui/Input";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AdminProfile() {
-  const admin = { fullName: "Admin User", email: "admin@demo.com" };
+  const { user } = useAuth();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Admin Profile</h1>
-        <p className="text-gray-600 mt-1">Your account details.</p>
-      </div>
+    <div className="rounded-2xl bg-white shadow-sm p-6 max-w-lg">
+      <h1 className="text-2xl font-extrabold text-gray-900">Admin Profile</h1>
 
-      <Card title="Profile" subtitle="This is read-only for now.">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Input label="Full Name" value={admin.fullName} readOnly />
-          <Input label="Email" value={admin.email} readOnly />
+      <div className="mt-4 space-y-3">
+        <div>
+          <div className="text-sm text-gray-500">Full name</div>
+          <div className="font-bold">{user?.fullName}</div>
         </div>
-      </Card>
+
+        <div>
+          <div className="text-sm text-gray-500">Email</div>
+          <div className="font-bold">{user?.email}</div>
+        </div>
+
+        <div>
+          <div className="text-sm text-gray-500">Roles</div>
+          <div className="font-bold">{user?.roles?.join(", ")}</div>
+        </div>
+      </div>
     </div>
   );
 }

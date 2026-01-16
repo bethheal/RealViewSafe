@@ -1,21 +1,38 @@
 import express from "express";
-import protect from "../middleware/protect.js";
-import allowRoles from "../middleware/allowRoles.js";
+import { protect } from "../middleware/auth.js";
+import { allowRoles } from "../middleware/role.middleware.js";
 
-import { dashboard, reviewProperty, assignSubscription, analyticsDashboard } from "../controllers/admin.controller.js";
-import { createAdminUser, sendPasswordReset } from "../controllers/admin.auth.controller.js";
+import {
+  dashboard,
+  listAgents,
+  suspendAgent,
+  listBuyersWithPurchases,
+  listPendingProperties,
+  reviewProperty,
+  listSubscriptions,
+  assignSubscription,
+} from "../controllers/admin.controller.js";
 
 const router = express.Router();
 
-router.get("/dashboard", protect, allowRoles("ADMIN"), dashboard);
-router.patch("/properties/:id/review", protect, allowRoles("ADMIN"), reviewProperty);
-router.get("/analytics", protect, allowRoles("ADMIN"), analyticsDashboard);
-router.post("/subscriptions", protect, allowRoles("ADMIN"), assignSubscription);
+// everything admin-only
+router.use(protect, allowRoles("ADMIN"));
 
-// ✅ create admin + send temp credentials
-router.post("/admin-users", protect, allowRoles("ADMIN"), createAdminUser);
+router.get("/dashboard", dashboard);
 
-// ✅ admin-triggered reset email (when they “contact admin”)
-router.post("/admin-users/reset-password", protect, allowRoles("ADMIN"), sendPasswordReset);
+// agents
+router.get("/agents", listAgents);
+router.patch("/agents/:id/suspend", suspendAgent);
+
+// buyers + purchases
+router.get("/buyers", listBuyersWithPurchases);
+
+// properties queue
+router.get("/properties", listPendingProperties);
+router.patch("/properties/:id/review", reviewProperty);
+
+// subscriptions
+router.get("/subscriptions", listSubscriptions);
+router.post("/subscriptions", assignSubscription);
 
 export default router;

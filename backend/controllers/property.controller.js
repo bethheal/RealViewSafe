@@ -53,6 +53,7 @@ export async function publicGetById(req, res) {
 
 /** AGENT: create property -> default PENDING (or DRAFT if sent) */
 export async function agentCreate(req, res) {
+
   try {
     const agent = await getAgentProfileByUserId(req.user.id);
     if (!agent) return res.status(404).json({ message: "Agent profile not found" });
@@ -74,6 +75,28 @@ export async function agentCreate(req, res) {
   } catch (e) {
     res.status(500).json({ message: e.message || "Server error" });
   }
+
+  // after you fetched agent profile with subscription
+const now = new Date();
+
+// if suspended, block
+if (agent.suspended) {
+  return res.status(403).json({ message: "Account suspended" });
+}
+
+// if expired, auto-suspend and block
+const expiresAt = agent.subscription?.expiresAt;
+if (expiresAt && new Date(expiresAt) <= now) {
+  await prisma.agentProfile.update({
+    where: { id: agent.id },
+    data: { suspended: true },
+  });
+  return res.status(403).json({ message: "Subscription expired. Account suspended." });
+}
+
+
+
+
 }
 
 /** AGENT: list all my properties */

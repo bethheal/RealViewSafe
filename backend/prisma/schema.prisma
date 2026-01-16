@@ -80,6 +80,8 @@ model AgentProfile {
   company  String?
   verified Boolean @default(false)
 
+  suspended Boolean @default(false)
+
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   properties   Property[]
   subscription Subscription?
