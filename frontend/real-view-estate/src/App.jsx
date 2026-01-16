@@ -30,6 +30,12 @@ import PropertyLead from "./pages/agent/PropertyLeads";
 import Subscription from "./pages/agent/Subscription";
 import AgentProfile from "./pages/agent/AgentProfile";
 import PropertyDraft from "./pages/agent/PropertyDrafts";
+import AdminLogin from "./pages/Auth/AdminLogin";
+import AdminAgents from "./pages/admin/Agents";
+import AdminBuyers from "./pages/admin/AdminBuyers";
+import AdminProperties from "./pages/admin/AdminProperties";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminProfile from "./pages/admin/AdminProfile";
 
 function App() {
   return (
@@ -59,6 +65,8 @@ function App() {
             <Route path="signup" element={<Signup />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
           </Route>
+
+
 
           {/* BUYER (LAYOUT + PAGES) */}
           <Route
@@ -100,6 +108,8 @@ function App() {
            
           </Route>
 
+                      <Route path="admin/login" element={<AdminLogin />} />
+
           <Route
             path="/admin"
             element={
@@ -110,7 +120,15 @@ function App() {
               </ProtectedRoute>
             }
           >
+
             <Route path="dashboard" element={<AdminDashboard/>} />
+            <Route path="agents" element={<AdminAgents />} />
+<Route path="buyers" element={<AdminBuyers />} />
+<Route path="properties" element={<AdminProperties />} />
+<Route path="subscriptions" element={<AdminSubscriptions />} />
+<Route path="profile" element={<AdminProfile />} />
+
+
           </Route>
          
         </Routes>

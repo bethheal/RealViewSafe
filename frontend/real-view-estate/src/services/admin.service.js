@@ -50,6 +50,13 @@ const adminService = {
     const res = await api.post("/admin/subscriptions", payload);
     return res.data;
   },
+
+async suspendAgent(id, payload) {
+  const res = await api.patch(`/admin/agents/${id}/suspend`, payload);
+  return res.data;
+},
+
+
 };
 
 export default adminService;

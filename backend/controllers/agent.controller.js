@@ -72,6 +72,7 @@ export async function addProperty(req, res) {
   try {
     const agent = await getAgentProfileByUserId(req.user.id);
     if (!agent) return res.status(404).json({ message: "Agent profile not found" });
+if (agent.suspended) return res.status(403).json({ message: "Account suspended. Contact admin." });
 
     const {
       title,
@@ -118,6 +119,9 @@ export async function addProperty(req, res) {
       },
       include: { images: true },
     });
+
+
+    
 
     return res.status(201).json(created);
   } catch (err) {
