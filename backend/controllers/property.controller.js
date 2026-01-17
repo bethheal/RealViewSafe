@@ -8,15 +8,15 @@ export async function publicBrowse(req, res) {
         images: true,
         agent: {
           include: {
-            user: { select: { fullName: true, phone: true } },
-            subscription: true,
+            user: { select: { fullName: true, phone: true } }, // ✅ buyer sees phone
+            subscription: true, // ✅ if you want sorting by subscription
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // sort by subscription priority (active) then newest
+    // OPTIONAL: sort by subscription priority (active) then newest
     const now = new Date();
     const score = (sub) => {
       const active = sub?.expiresAt && new Date(sub.expiresAt) > now;
@@ -39,6 +39,7 @@ export async function publicBrowse(req, res) {
   }
 }
 
+
 export async function publicGetById(req, res) {
   try {
     const property = await prisma.property.findUnique({
@@ -46,7 +47,10 @@ export async function publicGetById(req, res) {
       include: {
         images: true,
         agent: {
-          include: { user: { select: { fullName: true, phone: true } } },
+          include: {
+            user: { select: { fullName: true, phone: true } },
+            subscription: true, // ✅ add this here
+          },
         },
       },
     });
@@ -60,6 +64,7 @@ export async function publicGetById(req, res) {
     return res.status(500).json({ message: e.message || "Server error" });
   }
 }
+
 
 /** ADMIN: list pending properties */
 export async function adminPending(req, res) {

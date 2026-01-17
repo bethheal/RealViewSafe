@@ -8,15 +8,18 @@ export default function AdminProperties() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = await adminService.getPendingProperties();
-      setItems(data || []);
-    } finally {
-      setLoading(false);
-    }
-  };
+const load = async () => {
+  setLoading(true);
+  try {
+    const res = await adminService.getPendingProperties();
+    // supports: array OR {data: array}
+    const arr = Array.isArray(res) ? res : (res?.data || []);
+    setItems(arr);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => { load(); }, []);
 
