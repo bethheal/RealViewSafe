@@ -32,6 +32,13 @@ const adminService = {
   async assignSubscription(payload) {
     return (await api.post("/admin/subscriptions", payload)).data;
   },
+
+    async changePassword(payload) {
+    // payload: { currentPassword, newPassword }  (or { newPassword } if forced)
+    return (await api.post("/admin/change-password", payload)).data;
+  },
+
+  
 };
 
 export default adminService;

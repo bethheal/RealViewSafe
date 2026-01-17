@@ -1,35 +1,32 @@
-import { useAuth } from "../../context/AuthContext";
+import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {Outlet } from "react-router-dom";
+import SidebarShell from "./Sidebarshell";
+import { CreditCard, Home, LayoutDashboard, User2Icon, UserCheck2, UserCircle } from "lucide-react";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const links = [
+    // Define admin-specific links here
+    { to: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18}/> },
+    { to: "/admin/agents", label: " Agent", icon: <User2Icon size={18}/> },
+    {to: "/admin/properties", label: " Properties", icon: <Home size={18}/> },
+    {to: "/admin/buyers", label: " Buyers", icon: <UserCheck2 size={18}/> },
+    {to: "/admin/subscriptions", label: " Subscriptions", icon: <CreditCard size={18}/> },
+    {to: "/admin/profile", label: "Profile", icon: <UserCircle size={18}/> },
+  ];
 
+  
   return (
-    <div className="min-h-screen flex">
+    <div >
       {/* sidebar */}
+       <SidebarShell title="Real View" links={links}>
+      <Outlet />
+    </SidebarShell> 
 
-      <div className="flex-1">
-        {/* top bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white shadow-sm">
-          <div>
-            <div className="text-sm text-gray-500">Signed in as</div>
-            <div className="font-bold text-gray-900">{user?.email}</div>
-          </div>
-
-          <button
-            onClick={() => {
-              logout();
-              navigate("/admin/login");
-            }}
-            className="text-sm font-bold text-red-600 hover:text-red-800"
-          >
-            Logout
-          </button>
-        </div>
-
-        {/* outlet */}
-      </div>
+      
     </div>
   );
 }

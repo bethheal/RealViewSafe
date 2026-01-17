@@ -8,18 +8,6 @@ import prisma from "../prisma/client.js";
 const router = express.Router();
 
 /**
- * GET /buyer/dashboard
- */
-router.get("/dashboard", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const data = await BuyerService.getBuyerDashboard(req.user.id);
-    res.json(data);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to load dashboard" });
-  }
-});
-
-/**
  * GET /buyer/profile
  */
 router.get("/profile", protect, allowRoles("BUYER"), async (req, res) => {
@@ -34,6 +22,8 @@ router.get("/profile", protect, allowRoles("BUYER"), async (req, res) => {
       fullName: buyer.user.fullName,
       email: buyer.user.email,
       phone: buyer.user.phone,
+      location: buyer.location || "",
+      avatarUrl: buyer.avatarUrl || "",
     });
   } catch (e) {
     res.status(500).json({ message: e.message || "Server error" });
@@ -42,21 +32,34 @@ router.get("/profile", protect, allowRoles("BUYER"), async (req, res) => {
 
 /**
  * PATCH /buyer/profile
- * body: { phone? }
+ * body: { phone?, location?, avatarUrl? }
  */
 router.patch("/profile", protect, allowRoles("BUYER"), async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, location, avatarUrl } = req.body;
 
-    const updated = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
-      data: { phone: phone ?? undefined },
+      data: {
+        phone: phone === null ? null : phone ?? undefined,
+      },
+    });
+
+    const updatedBuyer = await prisma.buyerProfile.upsert({
+      where: { userId: req.user.id },
+      create: { userId: req.user.id, location: location || "", avatarUrl: avatarUrl || "" },
+      update: {
+        location: location === null ? "" : location ?? undefined,
+        avatarUrl: avatarUrl === null ? "" : avatarUrl ?? undefined,
+      },
     });
 
     res.json({
-      fullName: updated.fullName,
-      email: updated.email,
-      phone: updated.phone,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      location: updatedBuyer.location || "",
+      avatarUrl: updatedBuyer.avatarUrl || "",
     });
   } catch (e) {
     res.status(400).json({ message: e.message || "Failed to update profile" });
@@ -64,89 +67,29 @@ router.patch("/profile", protect, allowRoles("BUYER"), async (req, res) => {
 });
 
 /**
- * GET /buyer/browse-properties
- * Returns APPROVED properties sorted by subscription priority
+ * DELETE /buyer/save/:propertyId  (UNDO SAVE)
  */
-router.get("/browse-properties", async (req, res) => {
+router.delete("/save/:propertyId", protect, allowRoles("BUYER"), async (req, res) => {
   try {
-    const data = await BuyerService.browseApprovedProperties();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ message: e.message || "Failed to browse properties" });
-  }
-});
-
-/**
- * POST /buyer/save
- * body: { propertyId }
- */
-router.post("/save", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const { propertyId } = req.body;
+    const { propertyId } = req.params;
     if (!propertyId) return res.status(400).json({ message: "propertyId is required" });
 
-    const out = await BuyerService.saveProperty(req.user.id, propertyId);
-    res.status(201).json(out);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to save property" });
+    const buyer = await prisma.buyerProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!buyer) return res.status(404).json({ message: "Buyer profile not found" });
+
+    await prisma.savedProperty.deleteMany({
+      where: { buyerId: buyer.id, propertyId },
+    });
+
+    return res.sendStatus(204);
+  } catch (err) {
+    console.error("unsave error:", err);
+    return res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
-/**
- * GET /buyer/saved
- */
-router.get("/saved", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const out = await BuyerService.getSavedProperties(req.user.id);
-    res.json(out);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to load saved" });
-  }
-});
-
-/**
- * POST /buyer/buy
- * body: { propertyId }
- */
-router.post("/buy", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const { propertyId } = req.body;
-    if (!propertyId) return res.status(400).json({ message: "propertyId is required" });
-
-    const out = await BuyerService.buyProperty(req.user.id, propertyId);
-    res.status(201).json(out);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to buy property" });
-  }
-});
-
-/**
- * GET /buyer/purchases
- */
-router.get("/purchases", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const out = await BuyerService.getPurchases(req.user.id);
-    res.json(out);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to load purchases" });
-  }
-});
-
-/**
- * POST /buyer/contact-agent
- * body: { propertyId }
- * Logs lead & returns whatsapp url
- */
-router.post("/contact-agent", protect, allowRoles("BUYER"), async (req, res) => {
-  try {
-    const { propertyId } = req.body;
-    if (!propertyId) return res.status(400).json({ message: "propertyId is required" });
-
-    const out = await BuyerService.contactAgentWhatsApp(req.user.id, propertyId);
-    res.json(out);
-  } catch (e) {
-    res.status(400).json({ message: e.message || "Failed to contact agent" });
-  }
-});
 
 export default router;

@@ -9,6 +9,7 @@ import {
   BarChart3,
   CreditCard,
   UserCircle,
+  Plus,
 } from "lucide-react";
 import SidebarShell from './Sidebarshell';
 
@@ -22,9 +23,26 @@ export default function AgentsLayout() {
     { to: "/agent/subscription", label: "Subscription", icon: <CreditCard size={18} /> },
     { to: "/agent/profile", label: "Profile", icon: <UserCircle size={18} /> },
   ];
+  
 
   return (
-    <SidebarShell title="Agent" links={links}>
+    <SidebarShell title="Real View" links={links}>
+       <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => navigate("/agent/add-property")}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F37A2A] text-white font-extrabold text-sm hover:opacity-90"
+            >
+              <Plus size={16} />
+              Add Property
+            </button>
+            <button
+              onClick={() => navigate("/agent/drafts")}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 text-gray-900 font-extrabold text-sm hover:bg-gray-50"
+            >
+              <FileText size={16} />
+              Drafts
+            </button>
+          </div>
       <Outlet />
     </SidebarShell>
   );

@@ -17,10 +17,17 @@ export default function SaveProperties() {
       .finally(() => setLoading(false));
   }, []);
 
-  const buy = async (id) => {
+ const buy = async (id) => {
+  try {
     await buyerService.buyProperty(id);
-    alert("Purchased (mock/API)");
-  };
+    // remove from UI immediately
+    setItems((prev) => prev.filter((x) => x.id !== id));
+    alert("Purchased");
+  } catch (e) {
+    alert(e?.response?.data?.message || "Purchase failed");
+  }
+};
+
 
   return (
     <div className="space-y-6">

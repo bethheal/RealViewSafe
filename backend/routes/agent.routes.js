@@ -10,13 +10,14 @@ import {
   myProperties,
   getDrafts,
 } from "../controllers/agent.controller.js";
-
 import { upload } from "../middleware/upload.js";
 
 const agentRouter = express.Router();
 
+// dashboard
 agentRouter.get("/dashboard", protect, allowRoles("AGENT"), dashboard);
 
+// properties
 agentRouter.get("/properties", protect, allowRoles("AGENT"), myProperties);
 agentRouter.get("/properties/drafts", protect, allowRoles("AGENT"), getDrafts);
 

@@ -32,10 +32,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-gray-900">Overview</h1>
-        <p className="text-gray-600 mt-1">Real-time admin metrics.</p>
-      </div>
+    
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Stat label="Agents" value={stats?.agents ?? 0} />

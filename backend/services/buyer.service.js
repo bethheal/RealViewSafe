@@ -14,17 +14,36 @@ function buildWhatsAppUrl(phone, message) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-export async function getBuyerDashboard(userId) {
-  const buyer = await getBuyerProfileByUserId(userId);
+
+export const getBuyerDashboard = async (userId) => {
+  const buyer = await prisma.buyerProfile.findUnique({ where: { userId } });
   if (!buyer) throw new Error("Buyer profile not found");
 
-  const [savedCount, purchaseCount] = await Promise.all([
-    prisma.savedProperty.count({ where: { buyerId: buyer.id } }),
-    prisma.propertyPurchase.count({ where: { buyerId: buyer.id } }),
-  ]);
+  const [savedCount, purchaseCount, leadCount, recentSaved, recentPurchases] =
+    await Promise.all([
+      prisma.savedProperty.count({ where: { buyerId: buyer.id } }),
+      prisma.propertyPurchase.count({ where: { buyerId: buyer.id } }),
+      prisma.propertyLead.count({ where: { buyerId: buyer.id } }),
+      prisma.savedProperty.findMany({
+        where: { buyerId: buyer.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        include: { property: true },
+      }),
+      prisma.propertyPurchase.findMany({
+        where: { buyerId: buyer.id },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        include: { property: true },
+      }),
+    ]);
 
-  return { saved: savedCount, purchases: purchaseCount };
-}
+  return {
+    stats: { savedCount, purchaseCount, leadCount },
+    recentSaved: recentSaved.map((x) => x.property),
+    recentPurchases: recentPurchases.map((x) => x.property),
+  };
+};
 
 export async function browseApprovedProperties() {
   const properties = await prisma.property.findMany({
@@ -81,11 +100,13 @@ export async function saveProperty(userId, propertyId) {
   const prop = await prisma.property.findUnique({ where: { id: propertyId } });
   if (!prop || prop.status !== "APPROVED") throw new Error("Property unavailable");
 
-  await prisma.savedProperty.upsert({
-    where: { buyerId_propertyId: { buyerId: buyer.id, propertyId } },
-    update: {},
-    create: { buyerId: buyer.id, propertyId },
-  });
+// in BuyerService.saveProperty or route handler logic
+await prisma.savedProperty.upsert({
+  where: { buyerId_propertyId: { buyerId: buyer.id, propertyId } }, // requires unique compound index
+  create: { buyerId: buyer.id, propertyId },
+  update: {},
+});
+
 
   return { ok: true };
 }

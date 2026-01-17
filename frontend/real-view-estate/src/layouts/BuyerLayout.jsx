@@ -12,9 +12,10 @@ export default function BuyerLayout() {
     { to: "/buyer/purchases", label: "Properties Bought", icon: <ShoppingBag size={18} /> },
     { to: "/buyer/profile", label: "Profile", icon: <UserCircle size={18} /> },
   ];
+  
 
   return (
-    <SidebarShell title="Buyer" links={links}>
+    <SidebarShell title="Real View" links={links}>
       <Outlet />
     </SidebarShell>
   );

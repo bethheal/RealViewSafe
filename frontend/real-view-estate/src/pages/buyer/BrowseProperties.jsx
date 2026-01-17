@@ -1,34 +1,82 @@
-import React from 'react';
-
-import { useState } from "react";
+// BrowseProperties.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import PropertyCard from "../../components/property/PropertyCard";
+import buyerService from "../../services/buyer.service";
 
 export default function BrowseProperties() {
   const [q, setQ] = useState("");
-  const properties = [
-    { id: "b1", title: "2 Bedroom Apartment", location: "East Legon", price: 250000, status: "APPROVED", featured: true, image: "https://via.placeholder.com/800x500", agentPhone: "233201234567" },
-    { id: "b2", title: "Townhouse", location: "Tema", price: 310000, status: "APPROVED", featured: false, image: "https://via.placeholder.com/800x500", agentPhone: "233501234567" },
-  ];
+  const [items, setItems] = useState([]);
+  const [savingId, setSavingId] = useState(null);
+  const [savedIds, setSavedIds] = useState(new Set());
 
-  const filtered = properties.filter((p) =>
-    (p.title + p.location).toLowerCase().includes(q.toLowerCase())
-  );
+  useEffect(() => {
+    // load listings + saved list so buttons reflect state
+    Promise.all([buyerService.browse(), buyerService.getSaved()])
+      .then(([browseRes, savedRes]) => {
+        setItems(browseRes.data || []);
+        const ids = new Set((savedRes.data || []).map((p) => p.id));
+        setSavedIds(ids);
+      })
+      .catch(() => {
+        setItems([]);
+      });
+  }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.toLowerCase();
+    return items.filter((p) =>
+      `${p.title} ${p.location}`.toLowerCase().includes(needle)
+    );
+  }, [items, q]);
 
   const openWhatsApp = (phone, title) => {
     const msg = `Hello, I'm interested in "${title}".`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
+  const toggleSave = async (propertyId) => {
+    setSavingId(propertyId);
+
+    const isSaved = savedIds.has(propertyId);
+
+    // Optimistic UI
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(propertyId);
+      else next.add(propertyId);
+      return next;
+    });
+
+    try {
+      if (isSaved) {
+        await buyerService.unsaveProperty(propertyId); // UNDO SAVE
+      } else {
+        await buyerService.saveProperty(propertyId);   // SAVE
+      }
+    } catch (e) {
+      // rollback if API fails
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(propertyId);
+        else next.delete(propertyId);
+        return next;
+      });
+      alert(e?.response?.data?.message || "Action failed");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Browse Properties</h1>
-        <p className="text-gray-600 mt-1">Featured listings appear more often.</p>
+        <p className="text-gray-600 mt-1">Explore approved listings.</p>
       </div>
 
-      <Card title="Search" subtitle="Fast, responsive search (filters can be added next)">
+      <Card title="Search" subtitle="Fast, responsive search">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -38,18 +86,31 @@ export default function BrowseProperties() {
       </Card>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((p) => (
-          <PropertyCard
-            key={p.id}
-            property={p}
-            actions={
-              <>
-                <Button variant="outline" size="sm" onClick={() => alert(`Save ${p.id}`)}>Save</Button>
-                <Button size="sm" onClick={() => openWhatsApp(p.agentPhone, p.title)}>Chat on WhatsApp</Button>
-              </>
-            }
-          />
-        ))}
+        {filtered.map((p) => {
+          const isSaved = savedIds.has(p.id);
+          return (
+            <PropertyCard
+              key={p.id}
+              property={p}
+              actions={
+                <>
+                  <Button
+                    variant={isSaved ? "outline" : "primary"}
+                    size="sm"
+                    disabled={savingId === p.id}
+                    onClick={() => toggleSave(p.id)}
+                  >
+                    {savingId === p.id ? "Working..." : isSaved ? "Undo Save" : "Save"}
+                  </Button>
+
+                  <Button size="sm" onClick={() => openWhatsApp(p.agentPhone, p.title)}>
+                    Chat on WhatsApp
+                  </Button>
+                </>
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );

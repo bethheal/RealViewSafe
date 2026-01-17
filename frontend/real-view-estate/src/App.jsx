@@ -36,7 +36,7 @@ import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminLogin from "./pages/admin/AdminLogin";
-import AdminChangePassword from "./pages/admin/AdminChangePassword";
+import AdminChangePassword from "./pages/admin/AdminChangePassword";  
 
 function App() {
   return (
@@ -65,10 +65,7 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
-
           </Route>
-
-
 
           {/* BUYER (LAYOUT + PAGES) */}
           <Route
@@ -86,7 +83,6 @@ function App() {
             <Route path="saved" element={<SaveProperties />} />
             <Route path="purchases" element={<PurchaseProperties />} />
             <Route path="profile" element={<BuyerProfile />} />
-           
           </Route>
 
           {/* AGENT (LAYOUT + PAGES) */}
@@ -107,10 +103,9 @@ function App() {
             <Route path="leads" element={<PropertyLead />} />
             <Route path="subscription" element={<Subscription />} />
             <Route path="profile" element={<AgentProfile />} />
-           
           </Route>
 
-                      <Route path="admin/login" element={<AdminLogin />} />
+          <Route path="admin/login" element={<AdminLogin />} />
 
           <Route
             path="/admin"
@@ -122,19 +117,15 @@ function App() {
               </ProtectedRoute>
             }
           >
-
-            <Route path="dashboard" element={<AdminDashboard/>} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="agents" element={<AdminAgents />} />
-<Route path="buyers" element={<AdminBuyers />} />
-<Route path="properties" element={<AdminProperties />} />
-<Route path="subscriptions" element={<AdminSubscriptions />} />
-<Route path="profile" element={<AdminProfile />} />
+            <Route path="buyers" element={<AdminBuyers />} />
+            <Route path="properties" element={<AdminProperties />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+            <Route path="profile" element={<AdminProfile />} />
 
-                                  <Route path ="change-password" element ={<AdminChangePassword/>} />
-
-
+            <Route path="change-password" element={<AdminChangePassword />} />
           </Route>
-         
         </Routes>
       </Suspense>
     </>
