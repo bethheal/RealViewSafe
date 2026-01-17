@@ -5,6 +5,8 @@ import Button from "../../components/ui/Button";
 import PropertyCard from "../../components/property/PropertyCard";
 import buyerService from "../../services/buyer.service";
 
+const cleanPhone = (phone) => String(phone || "").replace(/\D/g, "");
+
 export default function BrowseProperties() {
   const [q, setQ] = useState("");
   const [items, setItems] = useState([]);
@@ -12,33 +14,39 @@ export default function BrowseProperties() {
   const [savedIds, setSavedIds] = useState(new Set());
 
   useEffect(() => {
-    // load listings + saved list so buttons reflect state
     Promise.all([buyerService.browse(), buyerService.getSaved()])
       .then(([browseRes, savedRes]) => {
-        setItems(browseRes.data || []);
+        // browseRes.data might be {data: []} OR []
+        const list = Array.isArray(browseRes.data) ? browseRes.data : (browseRes.data?.data || []);
+        setItems(list);
+
+        // savedRes.data might be [] of properties
         const ids = new Set((savedRes.data || []).map((p) => p.id));
         setSavedIds(ids);
       })
-      .catch(() => {
-        setItems([]);
-      });
+      .catch(() => setItems([]));
   }, []);
 
   const filtered = useMemo(() => {
     const needle = q.toLowerCase();
-    return items.filter((p) =>
-      `${p.title} ${p.location}`.toLowerCase().includes(needle)
-    );
+    return items.filter((p) => `${p.title} ${p.location}`.toLowerCase().includes(needle));
   }, [items, q]);
 
   const openWhatsApp = (phone, title) => {
+    const p = cleanPhone(phone);
+    if (!p) return alert("Agent phone number not available");
     const msg = `Hello, I'm interested in "${title}".`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+    window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const callAgent = (phone) => {
+    const p = cleanPhone(phone);
+    if (!p) return alert("Agent phone number not available");
+    window.open(`tel:${p}`, "_self");
   };
 
   const toggleSave = async (propertyId) => {
     setSavingId(propertyId);
-
     const isSaved = savedIds.has(propertyId);
 
     // Optimistic UI
@@ -50,11 +58,8 @@ export default function BrowseProperties() {
     });
 
     try {
-      if (isSaved) {
-        await buyerService.unsaveProperty(propertyId); // UNDO SAVE
-      } else {
-        await buyerService.saveProperty(propertyId);   // SAVE
-      }
+      if (isSaved) await buyerService.unsaveProperty(propertyId);
+      else await buyerService.saveProperty(propertyId);
     } catch (e) {
       // rollback if API fails
       setSavedIds((prev) => {
@@ -88,6 +93,10 @@ export default function BrowseProperties() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((p) => {
           const isSaved = savedIds.has(p.id);
+
+          // ✅ phone from backend include
+          const agentPhone = p?.agent?.user?.phone || "";
+
           return (
             <PropertyCard
               key={p.id}
@@ -103,7 +112,20 @@ export default function BrowseProperties() {
                     {savingId === p.id ? "Working..." : isSaved ? "Undo Save" : "Save"}
                   </Button>
 
-                  <Button size="sm" onClick={() => openWhatsApp(p.agentPhone, p.title)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!cleanPhone(agentPhone)}
+                    onClick={() => callAgent(agentPhone)}
+                  >
+                    Call Agent
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    disabled={!cleanPhone(agentPhone)}
+                    onClick={() => openWhatsApp(agentPhone, p.title)}
+                  >
                     Chat on WhatsApp
                   </Button>
                 </>
