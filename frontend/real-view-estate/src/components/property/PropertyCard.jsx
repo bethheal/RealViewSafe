@@ -42,7 +42,6 @@ export default function PropertyCard({ property, actions, footer }) {
         </div>
 
         {actions && <div className="pt-2 flex flex-wrap gap-2">{actions}</div>}
-        {footer && <div className="pt-3 border-t border-gray-100">{footer}</div>}
       </div>
     </div>
   );

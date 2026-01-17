@@ -61,37 +61,7 @@ export default function Contact() {
             </form>
           </div>
 
-          {/* Contact Info */}
-          <div className="rounded-2xl bg-[#8B6F2F] p-8 text-white shadow-sm">
-            <h3 className="mb-4 text-xl font-semibold">Get In Touch</h3>
-            <p className="mb-8 text-sm text-white/90">
-              You can also reach us directly through the following contact details.
-            </p>
-
-            <ul className="space-y-5 text-sm">
-              <li className="flex items-start gap-4">
-                <MapPin className="h-5 w-5 text-white/90" />
-                <span>
-                  12 Real Estate Ave, East Legon, Accra, Ghana
-                </span>
-              </li>
-
-              <li className="flex items-center gap-4">
-                <Phone className="h-5 w-5 text-white/90" />
-                <span>+233 55 123 4567</span>
-              </li>
-
-              <li className="flex items-center gap-4">
-                <Mail className="h-5 w-5 text-white/90" />
-                <span>support@realview.com</span>
-              </li>
-
-              <li className="flex items-center gap-4">
-                <Globe className="h-5 w-5 text-white/90" />
-                <span>www.realview.com</span>
-              </li>
-            </ul>
-          </div>
+        
         </div>
       </div>
     </section>

@@ -10,7 +10,6 @@ export default function RootLayout() {
       <main className="pt-20">
         <Outlet />
       </main>
-      <Footer />
     </>
   );
 }
