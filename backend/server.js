@@ -14,17 +14,45 @@ import subscriptionRoutes from "./routes/subscription.routes.js";
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://YOUR-FRONTEND.onrender.com",
+];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("CORS blocked"));
+    },
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json());
 
-// ✅ Serve uploaded files
+// static uploads
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// ✅ Routes
+// routes
 app.use("/api/auth", authRoutes);
 app.use("/api/agent", agentRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+
+app.get("/", (req, res) => {
+  res.send("✅ RealViewEstate API is running");
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, message: "API healthy" });
+});
+
+
+
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,24 +1,18 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-export function makeTransport() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    throw new Error("Missing SMTP env vars (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)");
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-}
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendMail({ to, subject, html }) {
-  const transport = makeTransport();
-  await transport.sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error("Missing RESEND_API_KEY");
+  }
+
+  if (!process.env.MAIL_FROM) {
+    throw new Error("Missing MAIL_FROM");
+  }
+
+  return resend.emails.send({
+    from: process.env.MAIL_FROM,
     to,
     subject,
     html,
