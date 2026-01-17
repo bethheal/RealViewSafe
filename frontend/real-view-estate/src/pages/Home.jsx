@@ -2,7 +2,7 @@ import React from 'react'
 import WhyBest from "../components/WhyBest";
 import PropertiesSection from '../components/PropertiesSection';
 import Contact from '../components/Contact';
-import FAQ from '../components/faq';
+import FAQ from '../components/FAQ';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Footer from '../components/Footer';
