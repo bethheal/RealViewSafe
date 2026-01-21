@@ -6,8 +6,9 @@ export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const cleanPassword = password.trim();
+    const normalizedEmail = String(email || "").toLowerCase().trim();
+    const cleanPassword = String(password || "");
+    const requestedRole = role ? String(role).toUpperCase() : null; // BUYER | AGENT
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -23,18 +24,33 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const roles = user.roles.map((r) => r.name);
+    // Current roles
+    let roles = (user.roles || []).map((r) => r.name);
 
-    // ✅ If client provides role (AGENT/BUYER), validate it
-    // ✅ If not provided (admin login), infer it
-    let primaryRole = role;
+    // ✅ If user selects a role on login and they don't have it,
+    // ✅ automatically grant it (so buyer can log in as agent and vice versa)
+    if (requestedRole && !roles.includes(requestedRole)) {
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          roles: {
+            connectOrCreate: {
+              where: { name: requestedRole },
+              create: { name: requestedRole },
+            },
+          },
+        },
+        include: { roles: true },
+      });
 
-    if (!primaryRole) {
-      // infer: choose ADMIN first if present, else first role
-      primaryRole = roles.includes("ADMIN") ? "ADMIN" : (roles[0] || null);
+      roles = updated.roles.map((r) => r.name);
     }
 
-    // ✅ Optional: allow creating agent/buyer profile ONLY if role is valid
+    // ✅ Decide primaryRole (use requestedRole if provided)
+    const primaryRole =
+      requestedRole || (roles.includes("ADMIN") ? "ADMIN" : roles[0] || "BUYER");
+
+    // ✅ Ensure profiles exist for whichever role they chose
     if (primaryRole === "AGENT") {
       await prisma.agentProfile.upsert({
         where: { userId: user.id },
@@ -51,16 +67,9 @@ export const login = async (req, res) => {
       });
     }
 
-    // ✅ security: ensure user actually has the role they claim (except when inferred)
-    if (role && !roles.includes(role)) {
-      return res.status(403).json({ message: "You are not authorized for this role" });
-    }
-
-    const token = jwt.sign(
-      { id: user.id, roles },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user.id, roles }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     return res.json({
       token,
@@ -77,29 +86,4 @@ export const login = async (req, res) => {
     console.error("LOGIN ERROR:", err);
     return res.status(500).json({ message: "Login failed" });
   }
-};
-
-// POST /auth/change-password  (logged-in user)
-export const changePassword = async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  if (!newPassword) return res.status(400).json({ message: "newPassword is required" });
-
-  const userId = req.user.id;
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.passwordHash) return res.status(400).json({ message: "No password set for this user" });
-
-  // optional: only require currentPassword if they already had one and not first-time
-  if (!user.mustChangePassword) {
-    const ok = await bcrypt.compare(currentPassword || "", user.passwordHash);
-    if (!ok) return res.status(401).json({ message: "Current password is wrong" });
-  }
-
-  const hash = await bcrypt.hash(newPassword, 10);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash: hash, mustChangePassword: false },
-  });
-
-  res.json({ message: "Password changed successfully" });
 };

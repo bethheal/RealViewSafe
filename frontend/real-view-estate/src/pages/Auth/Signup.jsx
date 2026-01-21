@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import AuthCard from "../../components/AuthCard";
 import GoogleAuth from "../../components/GoogleAuth";
@@ -23,7 +22,6 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth(); // optional
   const navigate = useNavigate();
 
   const submit = async (e) => {
@@ -31,8 +29,21 @@ export default function Signup() {
     if (loading) return;
 
     const form = new FormData(e.target);
-    const password = form.get("password");
-    const confirmPassword = form.get("confirmPassword");
+    const fullName = String(form.get("fullName") || "").trim();
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
+    const confirmPassword = String(form.get("confirmPassword") || "");
+
+    /* ---------- validations ---------- */
+    if (!fullName) {
+      toast.error("Full name is required");
+      return;
+    }
+
+    if (!email) {
+      toast.error("Email is required");
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
@@ -41,7 +52,7 @@ export default function Signup() {
 
     if (!isStrongPassword(password)) {
       toast.error(
-        "Password must be 8+ characters with uppercase, lowercase, number & symbol"
+        "Password must be at least 8 characters with uppercase, lowercase, number and symbol"
       );
       return;
     }
@@ -49,20 +60,35 @@ export default function Signup() {
     try {
       setLoading(true);
 
-      await api.post("/auth/signup", {
-        fullName: form.get("fullName"),
-        email: form.get("email"),
+      const res = await api.post("/auth/signup", {
+        fullName,
+        email,
         password,
-        role,
+        role, // BUYER | AGENT
       });
 
-      toast.success("Account created successfully");
+      // Backend should return a helpful message
+      toast.success(
+        res?.data?.message ||
+          (res.status === 200
+            ? "Role added to your existing account"
+            : "Account created successfully")
+      );
 
       setTimeout(() => {
         navigate("/login");
-      }, 1200);
+      }, 800);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Signup failed");
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message;
+
+      if (status === 400 && msg?.toLowerCase().includes("email")) {
+        toast.error(
+          "This email already exists. If you want to use this account as another role, simply sign up with that role."
+        );
+      } else {
+        toast.error(msg || "Signup failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -89,6 +115,7 @@ export default function Signup() {
         ))}
       </div>
 
+      {/* Signup Form */}
       <form onSubmit={submit} className="space-y-4">
         {/* Full Name */}
         <div className="relative">
@@ -99,6 +126,7 @@ export default function Signup() {
             className="input pl-10"
             required
             disabled={loading}
+            autoComplete="name"
           />
         </div>
 
@@ -112,6 +140,7 @@ export default function Signup() {
             className="input pl-10"
             required
             disabled={loading}
+            autoComplete="email"
           />
         </div>
 
@@ -124,12 +153,14 @@ export default function Signup() {
             className="input pl-10 pr-10"
             required
             disabled={loading}
+            autoComplete="new-password"
           />
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={() => setShowPassword((v) => !v)}
             className="icon-right"
             disabled={loading}
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
@@ -144,15 +175,8 @@ export default function Signup() {
             className="input pl-10 pr-10"
             required
             disabled={loading}
+            autoComplete="new-password"
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="icon-right"
-            disabled={loading}
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
         </div>
 
         {/* Submit */}
@@ -166,7 +190,9 @@ export default function Signup() {
           {loading ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Creating account...
+              {role === "AGENT"
+                ? "Creating agent account..."
+                : "Creating account..."}
             </>
           ) : (
             `Sign Up as ${role}`

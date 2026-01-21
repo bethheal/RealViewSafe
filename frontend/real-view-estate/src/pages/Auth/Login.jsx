@@ -20,29 +20,43 @@ export default function Login() {
     if (loading) return;
 
     const form = new FormData(e.target);
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
 
     try {
       setLoading(true);
 
       const res = await api.post("/auth/login", {
-        email: form.get("email"),
-        password: form.get("password"),
-        role,
+        email,
+        password,
+        role, // BUYER | AGENT
       });
 
-      // Save user + token in context
+      // Save token + user in context/localStorage (your AuthContext.login handles this)
       login(res.data);
 
-      // Toast success
-      toast.success(`Logged in as ${res.data.user.primaryRole}`);
+      const primaryRole = res.data?.user?.primaryRole || role;
+      toast.success(`Logged in as ${primaryRole}`);
 
-      // Redirect based on server-verified role
-      const userRole = res.data.user.primaryRole;
       setTimeout(() => {
-        navigate(userRole === "AGENT" ? "/agent/dashboard" : "/buyer/dashboard");
-      }, 500);
+        navigate(primaryRole === "AGENT" ? "/agent/dashboard" : "/buyer/dashboard");
+      }, 300);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Invalid credentials");
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message;
+
+      // ✅ Friendly message for cross-role attempt
+      if (
+        status === 403 &&
+        typeof msg === "string" &&
+        msg.toLowerCase().includes("authorized")
+      ) {
+        toast.error(
+          `This account is not registered as ${role} yet. Please sign up as ${role} to add that role.`
+        );
+      } else {
+        toast.error(msg || "Invalid credentials");
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +94,7 @@ export default function Login() {
             className="input pl-10"
             required
             disabled={loading}
+            autoComplete="email"
           />
         </div>
 
@@ -91,12 +106,14 @@ export default function Login() {
             className="input pl-10 pr-10"
             required
             disabled={loading}
+            autoComplete="current-password"
           />
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={() => setShowPassword((v) => !v)}
             className="icon-right"
             disabled={loading}
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>

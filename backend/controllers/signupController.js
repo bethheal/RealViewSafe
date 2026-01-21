@@ -11,22 +11,84 @@ const isStrongPassword = (password) => {
   );
 };
 
-// ---------------- SIGNUP ----------------
 export const signup = async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
 
-    // ✅ Normalize inputs
     const normalizedEmail = email.toLowerCase().trim();
-    const cleanPassword = password.trim();
-    const normalizedRole = String(role || "").toUpperCase(); // "BUYER" | "AGENT" | "ADMIN"
+    const cleanPassword = (password || "").trim();
+    const normalizedRole = String(role || "").toUpperCase();
 
-    // ✅ Validate role
     if (!["BUYER", "AGENT", "ADMIN"].includes(normalizedRole)) {
       return res.status(400).json({ message: "Invalid role selected" });
     }
 
-    // ✅ Check password strength
+    // Find existing user (if any)
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { roles: true },
+    });
+
+    // If user exists → just attach role (and profile) and return
+    if (existing) {
+      const existingRoles = existing.roles.map((r) => r.name);
+
+      // If already has role, just return
+      if (existingRoles.includes(normalizedRole)) {
+        return res.status(200).json({
+          user: {
+            id: existing.id,
+            fullName: existing.fullName,
+            email: existing.email,
+            roles: existingRoles,
+            primaryRole: normalizedRole,
+          },
+          message: "Account already exists; role already assigned",
+        });
+      }
+
+      // Add the new role
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          roles: {
+            connectOrCreate: {
+              where: { name: normalizedRole },
+              create: { name: normalizedRole },
+            },
+          },
+        },
+        include: { roles: true },
+      });
+
+      // Ensure profile exists for that role
+      if (normalizedRole === "AGENT") {
+        await prisma.agentProfile.upsert({
+          where: { userId: updated.id },
+          update: {},
+          create: { userId: updated.id },
+        });
+      } else if (normalizedRole === "BUYER") {
+        await prisma.buyerProfile.upsert({
+          where: { userId: updated.id },
+          update: {},
+          create: { userId: updated.id },
+        });
+      }
+
+      return res.status(200).json({
+        user: {
+          id: updated.id,
+          fullName: updated.fullName,
+          email: updated.email,
+          roles: updated.roles.map((r) => r.name),
+          primaryRole: normalizedRole,
+        },
+        message: "Role added to existing account",
+      });
+    }
+
+    // New user flow
     if (!isStrongPassword(cleanPassword)) {
       return res.status(400).json({
         message:
@@ -34,19 +96,8 @@ export const signup = async (req, res) => {
       });
     }
 
-    // ✅ Check if user already exists
-    const existing = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (existing) {
-      return res.status(400).json({ message: "Email already in use" });
-    }
-
-    // ✅ Hash password
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
-    // ✅ Create user with role
     const user = await prisma.user.create({
       data: {
         fullName: fullName.trim(),
@@ -62,7 +113,6 @@ export const signup = async (req, res) => {
       include: { roles: true },
     });
 
-    // ✅ Create profile automatically (INSIDE signup function)
     if (normalizedRole === "AGENT") {
       await prisma.agentProfile.create({ data: { userId: user.id } });
     } else if (normalizedRole === "BUYER") {
