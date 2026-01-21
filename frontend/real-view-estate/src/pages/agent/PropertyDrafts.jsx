@@ -1,5 +1,4 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
@@ -10,7 +9,7 @@ import PropertyCard from "../../components/property/PropertyCard";
 
 import { agentService } from "../../services/agent.service";
 
-export default function PropertyDraft() {
+export default function PropertyDrafts() {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +24,14 @@ export default function PropertyDraft() {
     try {
       setLoading(true);
       const res = await agentService.getDrafts();
-      setDrafts(res.data || []);
+
+      // ✅ YOUR backend: res.json({ data: drafts })
+      // so res.data.data is the array
+      const list = res?.data?.data;
+
+      setDrafts(Array.isArray(list) ? list : []);
+    } catch (err) {
+      setDrafts([]);
     } finally {
       setLoading(false);
     }
@@ -35,8 +41,7 @@ export default function PropertyDraft() {
     fetchData();
   }, []);
 
-  const onEdit = (p) =>
-    navigate("/agent/add-property", { state: { property: p } });
+  const onEdit = (p) => navigate("/agent/add-property", { state: { property: p } });
 
   const onDelete = (p) => {
     setSelected(p);
@@ -54,7 +59,7 @@ export default function PropertyDraft() {
   };
 
   const closeConfirm = () => {
-    if (actionLoading) return; // prevent closing while deleting/submitting
+    if (actionLoading) return;
     setConfirm({ open: false, type: null });
     setSelected(null);
   };
@@ -64,11 +69,7 @@ export default function PropertyDraft() {
     try {
       setActionLoading(true);
       await agentService.deleteProperty(selected.id);
-      setInfo({
-        open: true,
-        title: "Deleted",
-        message: "Draft deleted successfully.",
-      });
+      setInfo({ open: true, title: "Deleted", message: "Draft deleted successfully." });
       await fetchData();
     } catch (e) {
       setInfo({
@@ -88,11 +89,7 @@ export default function PropertyDraft() {
     try {
       setActionLoading(true);
       await agentService.markSold(selected.id);
-      setInfo({
-        open: true,
-        title: "Sold",
-        message: "Property marked as SOLD.",
-      });
+      setInfo({ open: true, title: "Sold", message: "Property marked as SOLD." });
       await fetchData();
     } catch (e) {
       setInfo({
@@ -111,7 +108,14 @@ export default function PropertyDraft() {
     if (!selected?.id) return;
     try {
       setActionLoading(true);
-      await agentService.updateProperty(selected.id, { status: "PENDING" });
+
+      // ✅ IMPORTANT:
+      // updateProperty expects multipart (FormData), not a plain object
+      const fd = new FormData();
+      fd.append("status", "PENDING");
+
+      await agentService.updateProperty(selected.id, fd);
+
       setInfo({
         open: true,
         title: "Submitted",
@@ -137,18 +141,13 @@ export default function PropertyDraft() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Drafts & Pending Properties
         </h1>
-        <p className="text-gray-600 mt-1">
-          Edit, submit, or manage your unpublished listings.
-        </p>
+        <p className="text-gray-600 mt-1">Edit, submit, or manage your unpublished listings.</p>
       </div>
 
       {loading ? (
         <div className="text-gray-600 font-semibold">Loading...</div>
       ) : drafts.length === 0 ? (
-        <EmptyState
-          title="No drafts found"
-          description="Create a property to see drafts here."
-        />
+        <EmptyState title="No drafts found" description="Create a property to see drafts here." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {drafts.map((p) => (
@@ -165,19 +164,11 @@ export default function PropertyDraft() {
                     Delete
                   </Button>
 
-                  <Button
-                    size="sm"
-                    onClick={() => onSubmitForReview(p)}
-                    disabled={p.status !== "DRAFT"}
-                  >
+                  <Button size="sm" onClick={() => onSubmitForReview(p)} disabled={p.status !== "DRAFT"}>
                     Submit
                   </Button>
 
-                  <Button
-                    size="sm"
-                    onClick={() => onMarkSold(p)}
-                    disabled={p.status !== "APPROVED"}
-                  >
+                  <Button size="sm" onClick={() => onMarkSold(p)} disabled={p.status !== "APPROVED"}>
                     Mark Sold
                   </Button>
                 </div>
@@ -187,7 +178,6 @@ export default function PropertyDraft() {
         </div>
       )}
 
-      {/* DELETE CONFIRM */}
       <ConfirmModal
         open={confirm.open && confirm.type === "delete"}
         title="Delete Draft?"
@@ -200,7 +190,6 @@ export default function PropertyDraft() {
         onConfirm={doDelete}
       />
 
-      {/* SOLD CONFIRM */}
       <ConfirmModal
         open={confirm.open && confirm.type === "sold"}
         title="Mark as Sold?"
@@ -213,7 +202,6 @@ export default function PropertyDraft() {
         onConfirm={doSold}
       />
 
-      {/* SUBMIT CONFIRM */}
       <ConfirmModal
         open={confirm.open && confirm.type === "submit"}
         title="Submit for Review?"
@@ -232,15 +220,7 @@ export default function PropertyDraft() {
         onClose={() => setInfo({ open: false, title: "", message: "" })}
         actions={
           <>
-            {info.title === "Submitted" && (
-              <Button onClick={() => navigate("/agent/drafts")}>
-                Check Drafts
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => setInfo({ open: false, title: "", message: "" })}
-            >
+            <Button variant="outline" onClick={() => setInfo({ open: false, title: "", message: "" })}>
               OK
             </Button>
           </>

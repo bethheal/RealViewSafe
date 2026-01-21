@@ -1,6 +1,11 @@
-import api from "./api";
+import api from "../lib/api"; // adjust path
+
+console.log("ADMIN api baseURL =", api?.defaults?.baseURL);
+
 
 const adminService = {
+
+  
   async getDashboard() {
     return (await api.get("/admin/dashboard")).data;
   },

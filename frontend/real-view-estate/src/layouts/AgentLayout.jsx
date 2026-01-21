@@ -1,4 +1,6 @@
 import React from 'react';
+import { useNavigate } from "react-router-dom";
+
 
 import { Outlet } from "react-router-dom";
 import {
@@ -14,6 +16,8 @@ import {
 import SidebarShell from './Sidebarshell';
 
 export default function AgentsLayout() {
+    const navigate = useNavigate();
+
   const links = [
     { to: "/agent/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { to: "/agent/add-property", label: "Add Property", icon: <PlusSquare size={18} /> },

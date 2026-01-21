@@ -1,12 +1,13 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+
 import express from "express";
 import cors from "cors";
 import path from "path";
 
 import prisma from "./prisma/client.js";
-
+import adminRoutes from "./routes/admin.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import agentRoutes from "./routes/agent.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
@@ -30,17 +31,36 @@ app.use(
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 app.use(express.json());
 
-// static uploads
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use(
+  "/uploads",
+  express.static(path.join(path.resolve(), "uploads"), {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith(".png")) {
+        res.setHeader("Content-Type", "image/png");
+      } else if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) {
+        res.setHeader("Content-Type", "image/jpeg");
+      } else if (filePath.endsWith(".webp")) {
+        res.setHeader("Content-Type", "image/webp");
+      }
+
+      // ✅ helps Chrome allow cross-origin images
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      // optional
+      res.setHeader("Cache-Control", "public, max-age=0");
+    },
+  }),
+);
 
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/agent", agentRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 
@@ -52,9 +72,6 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "API healthy" });
 });
 
-
-
-
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
@@ -62,9 +79,7 @@ async function startServer() {
     await prisma.$connect();
     console.log("✅ Database connected successfully");
 
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on port ${PORT}`)
-    );
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   } catch (error) {
     console.error("❌ Database connection failed", error);
     process.exit(1);

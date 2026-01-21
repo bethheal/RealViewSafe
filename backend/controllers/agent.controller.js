@@ -1,115 +1,60 @@
 import prisma from "../prisma/client.js";
-import { getAgentProfileByUserId } from "../services/user.service.js";
 
-const toIntOrNull = (v) => (v === "" || v == null ? null : Number(v));
+/* ---------------- helpers ---------------- */
+const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
+const toNumOrNull = (v) => (v === undefined || v === null || v === "" ? null : Number(v));
 
-function boolFromBody(v) {
-  if (v === true || v === false) return v;
-  if (typeof v === "string") return v === "true";
-  return false;
-}
+function normalizeFurnishing({ furnished, semiFurnished, unfurnished }) {
+  const f = toBool(furnished);
+  const sf = toBool(semiFurnished);
+  const uf = toBool(unfurnished);
 
-function parseImagesBody(images) {
-  if (!images) return [];
-  if (Array.isArray(images)) return images.filter(Boolean);
-
-  if (typeof images === "string") {
-    const trimmed = images.trim();
-    if (!trimmed) return [];
-    try {
-      const parsed = JSON.parse(trimmed);
-      return Array.isArray(parsed) ? parsed.filter(Boolean) : [trimmed];
-    } catch {
-      return [trimmed];
-    }
+  // none selected -> unfurnished true
+  if (!f && !sf && !uf) {
+    return { furnished: false, semiFurnished: false, unfurnished: true };
   }
-  return [];
+
+  // enforce only one true (priority furnished > semiFurnished > unfurnished)
+  if (f) return { furnished: true, semiFurnished: false, unfurnished: false };
+  if (sf) return { furnished: false, semiFurnished: true, unfurnished: false };
+  return { furnished: false, semiFurnished: false, unfurnished: true };
 }
 
-function upperOrNull(v) {
-  if (v == null) return null;
-  const s = String(v).trim();
-  if (!s) return null;
-  return s.toUpperCase();
+async function getAgentProfileId(userId) {
+  const agentProfile = await prisma.agentProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return agentProfile?.id || null;
 }
 
-async function getAgentOr404(req, res) {
-  // IMPORTANT: make sure getAgentProfileByUserId includes subscription if you want to check expiry
-  const agent = await getAgentProfileByUserId(req.user.id);
-  if (!agent) {
-    res.status(404).json({ message: "Agent profile not found" });
-    return null;
-  }
-  return agent;
-}
-
-function normalizePropertyPayload(body) {
-  const type = upperOrNull(body.type) || "HOUSE";
-  const transactionType = upperOrNull(body.transactionType) || "SALE";
-  const isLand = type === "LAND";
-
-  // category optional, but LAND doesn't need category
-  const category = isLand ? null : (upperOrNull(body.category) || null);
-
-  return {
-    type,
-    transactionType,
-    category,
-    isLand,
-  };
-}
-
-/** ===============================
- *  AGENT: DASHBOARD
- *  GET /api/agent/dashboard
- * =============================== */
+/* ---------------- dashboard ---------------- */
 export async function dashboard(req, res) {
   try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) return res.status(400).json({ message: "Agent profile not found" });
 
-    const [total, drafts, pending, approved, rejected, sold, rented] = await Promise.all([
-      prisma.property.count({ where: { agentId: agent.id } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "DRAFT" } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "PENDING" } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "APPROVED" } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "REJECTED" } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "SOLD" } }),
-      prisma.property.count({ where: { agentId: agent.id, status: "RENTED" } }),
+    const [total, pending, approved, rejected, drafts] = await Promise.all([
+      prisma.property.count({ where: { agentId: agentProfileId } }),
+      prisma.property.count({ where: { agentId: agentProfileId, status: "PENDING" } }),
+      prisma.property.count({ where: { agentId: agentProfileId, status: "APPROVED" } }),
+      prisma.property.count({ where: { agentId: agentProfileId, status: "REJECTED" } }),
+      prisma.property.count({ where: { agentId: agentProfileId, status: "DRAFT" } }),
     ]);
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { agentId: agent.id },
-    });
-
-    return res.json({
-      properties: total,
-      drafts,
-      pending,
-      approved,
-      rejected,
-      sold,
-      rented,
-      subscription: subscription?.plan || "FREE",
-    });
+    res.json({ data: { total, pending, approved, rejected, drafts } });
   } catch (err) {
     console.error("dashboard error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 }
 
-/** ===============================
- *  AGENT: ADD PROPERTY
- *  POST /api/agent/properties
- *  multipart/form-data (multer)
- * =============================== */
+/* ---------------- add property ---------------- */
 export async function addProperty(req, res) {
   try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
-
-    if (agent.suspended) {
-      return res.status(403).json({ message: "Account suspended. Contact admin." });
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) {
+      return res.status(400).json({ message: "Agent profile not found for this user" });
     }
 
     const {
@@ -118,82 +63,77 @@ export async function addProperty(req, res) {
       description,
       price,
       status,
+      type,
+      transactionType,
+      category,
       bedrooms,
       bathrooms,
       sizeSqm,
       furnished,
-      parking,
-      images,
+      semiFurnished,
+      unfurnished,
     } = req.body;
 
-    if (!title || !location || price == null || price === "") {
-      return res.status(400).json({ message: "title, location and price are required" });
+
+    if (!title || !location || price === undefined || price === null || price === "") {
+      return res.status(400).json({ message: "title, location, and price are required" });
     }
 
-    const { type, transactionType, category, isLand } = normalizePropertyPayload(req.body);
+    const furnishing = normalizeFurnishing({ furnished, semiFurnished, unfurnished });
 
-    // images: combine URL images + uploaded media
-    const uploadedUrls = (req.files || []).map((f) => `/uploads/${f.filename}`);
-    const urlImages = parseImagesBody(images);
-    const allImages = [...urlImages, ...uploadedUrls].filter(Boolean);
+    const files = Array.isArray(req.files) ? req.files : [];
+    const imageCreates = files.map((file) => ({ url: `/uploads/${file.filename}` }));
 
     const created = await prisma.property.create({
       data: {
-        agentId: agent.id,
-        title: String(title).trim(),
-        location: String(location).trim(),
-        description: description ? String(description) : null,
+        agentId: agentProfileId,
+        title,
+        location,
+        description: description || null,
         price: Number(price),
 
-        status: status === "DRAFT" ? "DRAFT" : "PENDING",
+        status: status || "PENDING",
+        type: type || "HOUSE",
+        transactionType: transactionType || "SALE",
+        category: category ? category : null,
 
-        type,
-        transactionType,
-        category,
+        bedrooms: toNumOrNull(bedrooms),
+        bathrooms: toNumOrNull(bathrooms),
+        sizeSqm: toNumOrNull(sizeSqm),
 
-        // LAND rules
-        bedrooms: isLand ? null : toIntOrNull(bedrooms),
-        bathrooms: isLand ? null : toIntOrNull(bathrooms),
-        sizeSqm: toIntOrNull(sizeSqm),
-        furnished: isLand ? false : boolFromBody(furnished),
-        parking: boolFromBody(parking),
+        furnished: furnishing.furnished,
+        semiFurnished: furnishing.semiFurnished,
+        unfurnished: furnishing.unfurnished,
 
-        images: {
-          create: allImages.map((url) => ({ url })),
-        },
+        images: { create: imageCreates },
       },
       include: { images: true },
     });
 
-    return res.status(201).json(created);
+    res.json({ data: created });
   } catch (err) {
     console.error("addProperty error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 }
 
-/** ===============================
- *  AGENT: UPDATE PROPERTY
- *  PATCH /api/agent/properties/:id
- *  multipart/form-data (multer)
- * =============================== */
+/* ---------------- update property ---------------- */
 export async function updateProperty(req, res) {
   try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
+    const propertyId = req.params.id;
 
-    const id = req.params.id;
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) {
+      return res.status(400).json({ message: "Agent profile not found for this user" });
+    }
 
-    const existing = await prisma.property.findFirst({
-      where: { id, agentId: agent.id },
-      include: { images: true },
+    const existing = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { agentId: true },
     });
 
-    if (!existing) return res.status(403).json({ message: "Not your property" });
-
-    if (existing.status === "SOLD" || existing.status === "RENTED") {
-      return res.status(400).json({ message: "Cannot edit a completed listing" });
-    }
+    if (!existing) return res.status(404).json({ message: "Property not found" });
+    if (existing.agentId !== agentProfileId) return res.status(403).json({ message: "Forbidden" });
 
     const {
       title,
@@ -201,171 +141,162 @@ export async function updateProperty(req, res) {
       description,
       price,
       status,
+      type,
+      transactionType,
+      category,
       bedrooms,
       bathrooms,
       sizeSqm,
       furnished,
-      parking,
-      images,
+      semiFurnished,
+      unfurnished,
     } = req.body;
 
-    // normalize enums
-    const { type, transactionType, category, isLand } = normalizePropertyPayload({
-      type: req.body.type ?? existing.type,
-      transactionType: req.body.transactionType ?? existing.transactionType,
-      category: req.body.category ?? existing.category,
-    });
+    const data = {};
+    if (title !== undefined) data.title = title;
+    if (location !== undefined) data.location = location;
+    if (description !== undefined) data.description = description || null;
+    if (price !== undefined) data.price = Number(price);
 
-    // images handling: replace images only if new images are provided
-    const uploadedUrls = (req.files || []).map((f) => `/uploads/${f.filename}`);
-    const urlImages = parseImagesBody(images);
-    const replaceImages = urlImages.length > 0 || uploadedUrls.length > 0;
-    const allImages = [...urlImages, ...uploadedUrls].filter(Boolean);
+    if (status !== undefined) data.status = status;
+    if (type !== undefined) data.type = type;
+    if (transactionType !== undefined) data.transactionType = transactionType;
+    if (category !== undefined) data.category = category ? category : null;
 
-    // allow agent to move DRAFT/REJECTED -> PENDING
-    const nextStatus =
-      status === "PENDING" && ["DRAFT", "REJECTED"].includes(existing.status)
-        ? "PENDING"
-        : existing.status;
+    if (bedrooms !== undefined) data.bedrooms = bedrooms === "" ? null : Number(bedrooms);
+    if (bathrooms !== undefined) data.bathrooms = bathrooms === "" ? null : Number(bathrooms);
+    if (sizeSqm !== undefined) data.sizeSqm = sizeSqm === "" ? null : Number(sizeSqm);
 
-    const updated = await prisma.property.update({
-      where: { id },
-      data: {
-        title: title != null ? String(title).trim() : existing.title,
-        location: location != null ? String(location).trim() : existing.location,
-        description: description != null ? String(description) : existing.description,
-        price: price != null && price !== "" ? Number(price) : existing.price,
+    // if any furnishing field is provided, normalize them
+    const anyFurnishingProvided =
+      furnished !== undefined || semiFurnished !== undefined || unfurnished !== undefined;
 
-        type,
-        transactionType,
-        category,
+    if (anyFurnishingProvided) {
+      const furnishing = normalizeFurnishing({ furnished, semiFurnished, unfurnished });
+      data.furnished = furnishing.furnished;
+      data.semiFurnished = furnishing.semiFurnished;
+      data.unfurnished = furnishing.unfurnished;
+    }
 
-        bedrooms: isLand ? null : (bedrooms != null ? toIntOrNull(bedrooms) : existing.bedrooms),
-        bathrooms: isLand ? null : (bathrooms != null ? toIntOrNull(bathrooms) : existing.bathrooms),
-        sizeSqm: sizeSqm != null ? toIntOrNull(sizeSqm) : existing.sizeSqm,
-        furnished: isLand ? false : (furnished != null ? boolFromBody(furnished) : existing.furnished),
-        parking: parking != null ? boolFromBody(parking) : existing.parking,
-
-        status: nextStatus,
-
-        ...(replaceImages
-          ? {
-              images: {
-                deleteMany: {},
-                create: allImages.map((url) => ({ url })),
-              },
-            }
-          : {}),
-      },
-      include: { images: true },
-    });
-
-    return res.json(updated);
-  } catch (err) {
-    console.error("updateProperty error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
-  }
-}
-
-/** ===============================
- *  AGENT: MY PROPERTIES
- *  GET /api/agent/properties
- * =============================== */
-export async function myProperties(req, res) {
-  try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
-
-    const items = await prisma.property.findMany({
-      where: { agentId: agent.id },
-      include: { images: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.json(items);
-  } catch (err) {
-    console.error("myProperties error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
-  }
-}
-
-/** ===============================
- *  AGENT: DRAFTS/PENDING/REJECTED
- *  GET /api/agent/properties/drafts
- * =============================== */
-export async function getDrafts(req, res) {
-  try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
-
-    const items = await prisma.property.findMany({
-      where: { agentId: agent.id, status: { in: ["DRAFT", "PENDING", "REJECTED"] } },
-      include: { images: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.json(items);
-  } catch (err) {
-    console.error("getDrafts error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
-  }
-}
-
-/** ===============================
- *  AGENT: DELETE
- *  DELETE /api/agent/properties/:id
- * =============================== */
-export async function deleteProperty(req, res) {
-  try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
-
-    const id = req.params.id;
-
-    const existing = await prisma.property.findFirst({
-      where: { id, agentId: agent.id },
-    });
-
-    if (!existing) return res.status(403).json({ message: "Not your property" });
-
-    await prisma.property.delete({ where: { id } });
-    return res.sendStatus(204);
-  } catch (err) {
-    console.error("deleteProperty error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
-  }
-}
-
-/** ===============================
- *  AGENT: MARK SOLD
- *  PATCH /api/agent/properties/:id/sold
- * =============================== */
-export async function markSold(req, res) {
-  try {
-    const agent = await getAgentOr404(req, res);
-    if (!agent) return;
-
-    const id = req.params.id;
-
-    const existing = await prisma.property.findFirst({
-      where: { id, agentId: agent.id },
-    });
-
-    if (!existing) return res.status(403).json({ message: "Not your property" });
-
-    // only allow SOLD if transactionType is SALE
-    if (existing.transactionType !== "SALE") {
-      return res.status(400).json({ message: "Only SALE properties can be marked SOLD" });
+    // add new uploaded images (optional)
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length > 0) {
+      data.images = {
+        create: files.map((file) => ({ url: `/uploads/${file.filename}` })),
+      };
     }
 
     const updated = await prisma.property.update({
-      where: { id },
-      data: { status: "SOLD" },
+      where: { id: propertyId },
+      data,
+      include: { images: true },
     });
 
-    return res.json(updated);
+    res.json({ data: updated });
+  } catch (err) {
+    console.error("updateProperty error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+/* ---------------- my properties ---------------- */
+export async function myProperties(req, res) {
+  try {
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) {
+      return res.status(400).json({ message: "Agent profile not found for this user" });
+    }
+
+    const items = await prisma.property.findMany({
+      where: { agentId: agentProfileId },
+      include: { images: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ data: items });
+  } catch (err) {
+    console.error("myProperties error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+/* ---------------- drafts ---------------- */
+export async function getDrafts(req, res) {
+  try {
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) {
+      return res.status(400).json({ message: "Agent profile not found" });
+    }
+
+    const drafts = await prisma.property.findMany({
+      where: {
+        agentId: agentProfileId,
+        status: {
+          in: ["DRAFT", "PENDING"], // ✅ correct
+        },
+      },
+      include: { images: true },
+      orderBy: { createdAt: "desc" },
+    });
+    
+
+    res.json({ data: drafts });
+  } catch (err) {
+    console.error("getDrafts error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+
+/* ---------------- delete ---------------- */
+export async function deleteProperty(req, res) {
+  try {
+    const propertyId = req.params.id;
+
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) return res.status(400).json({ message: "Agent profile not found" });
+
+    const existing = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { agentId: true },
+    });
+
+    if (!existing) return res.status(404).json({ message: "Property not found" });
+    if (existing.agentId !== agentProfileId) return res.status(403).json({ message: "Forbidden" });
+
+    await prisma.property.delete({ where: { id: propertyId } });
+    res.sendStatus(204);
+  } catch (err) {
+    console.error("deleteProperty error:", err);
+    res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+/* ---------------- mark sold ---------------- */
+export async function markSold(req, res) {
+  try {
+    const propertyId = req.params.id;
+
+    const agentProfileId = await getAgentProfileId(req.user.id);
+    if (!agentProfileId) return res.status(400).json({ message: "Agent profile not found" });
+
+    const existing = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { agentId: true },
+    });
+
+    if (!existing) return res.status(404).json({ message: "Property not found" });
+    if (existing.agentId !== agentProfileId) return res.status(403).json({ message: "Forbidden" });
+
+    const updated = await prisma.property.update({
+      where: { id: propertyId },
+      data: { status: "SOLD" },
+      include: { images: true },
+    });
+
+    res.json({ data: updated });
   } catch (err) {
     console.error("markSold error:", err);
-    return res.status(500).json({ message: err.message || "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 }

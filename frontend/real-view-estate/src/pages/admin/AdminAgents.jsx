@@ -11,14 +11,24 @@ export default function AdminAgents() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await adminService.getAgents();
-      setAgents(data || []);
+      const payload = await adminService.getAgents();
+
+      // ✅ supports:
+      // 1) payload is array: [...]
+      // 2) payload is object: { data: [...] }
+      const list = Array.isArray(payload) ? payload : payload?.data;
+
+      setAgents(Array.isArray(list) ? list : []);
+    } catch (e) {
+      setAgents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const toggleSuspend = async (agent) => {
     await adminService.suspendAgent(agent.id, { suspended: !agent.suspended });
@@ -59,10 +69,15 @@ export default function AdminAgents() {
                     <td className="px-4 py-4">{a.suspended ? "YES" : "NO"}</td>
                     <td className="px-4 py-4">{a.subscription?.plan || "FREE"}</td>
                     <td className="px-4 py-4">
-                      {a.subscription?.expiresAt ? new Date(a.subscription.expiresAt).toLocaleDateString() : "—"}
+                      {a.subscription?.expiresAt
+                        ? new Date(a.subscription.expiresAt).toLocaleDateString()
+                        : "—"}
                     </td>
                     <td className="px-4 py-4">
-                      <Button onClick={() => toggleSuspend(a)} variant={a.suspended ? "primary" : "danger"}>
+                      <Button
+                        onClick={() => toggleSuspend(a)}
+                        variant={a.suspended ? "primary" : "danger"}
+                      >
                         {a.suspended ? "Unsuspend" : "Suspend"}
                       </Button>
                     </td>

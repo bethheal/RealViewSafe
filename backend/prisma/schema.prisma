@@ -17,12 +17,10 @@ model User {
   passwordHash       String?
   phone              String?
   mustChangePassword Boolean       @default(false)
-
   accounts           Account[]
-  roles              Role[]        @relation("RoleToUser")
-
   agentProfile       AgentProfile?
   buyerProfile       BuyerProfile?
+  roles              Role[]        @relation("RoleToUser")
 }
 
 model Role {
@@ -36,7 +34,6 @@ model Account {
   userId            String
   provider          String
   providerAccountId String
-
   user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
@@ -49,34 +46,21 @@ model PasswordResetToken {
   expiresAt DateTime
 }
 
-/**
- * ===============================
- * PROFILES
- * ===============================
- */
-
 model AgentProfile {
-  id               String        @id @default(uuid())
-  userId           String        @unique
-
+  id               String          @id @default(uuid())
+  userId           String          @unique
   bio              String?
   company          String?
-  verified         Boolean       @default(false)
-
-  suspended        Boolean       @default(false)
-
-  // ✅ Business details (optional)
+  verified         Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  suspended        Boolean         @default(false)
+  avatarUrl        String?
+  businessLocation String?
   businessName     String?
   businessPhone    String?
-  businessLocation String?
-  avatarUrl        String?       @db.Text
-
   documents        AgentDocument[]
-
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   properties       Property[]
   subscription     Subscription?
 
@@ -84,38 +68,26 @@ model AgentProfile {
 }
 
 model AgentDocument {
-  id          String            @id @default(uuid())
-  agentId     String
-  type        AgentDocumentType @default(BUSINESS_PROOF)
-  url         String            @db.Text
-  label       String?
-  verified    Boolean           @default(false)
-
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  agent       AgentProfile      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  id        String            @id @default(uuid())
+  agentId   String
+  type      AgentDocumentType @default(BUSINESS_PROOF)
+  url       String
+  label     String?
+  verified  Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  agent     AgentProfile      @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId])
-}
-
-enum AgentDocumentType {
-  BUSINESS_PROOF
-  ID_CARD
-  OTHER
 }
 
 model BuyerProfile {
   id        String             @id @default(uuid())
   userId    String             @unique
-
-  // ✅ profile fields
-  location  String?
-  avatarUrl String?            @db.Text
-
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
-
+  avatarUrl String?
+  location  String?
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   leads     PropertyLead[]
   purchases PropertyPurchase[]
@@ -124,41 +96,30 @@ model BuyerProfile {
   @@index([userId])
 }
 
-/**
- * ===============================
- * PROPERTIES
- * ===============================
- */
-
 model Property {
-  id              String                 @id @default(uuid())
+  id              String                  @id @default(uuid())
   agentId         String
-
   title           String
-  description     String?                @db.Text
+  description     String?
   price           Int
   location        String
+  status          PropertyStatus          @default(PENDING)
+  rejectionReason String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  bathrooms       Int?
+  bedrooms        Int?
 
-  // ✅ NEW
-  type            PropertyType           @default(HOUSE)
+  furnished       Boolean                 @default(false)
+  semiFurnished   Boolean                 @default(false)
+  unfurnished     Boolean                 @default(false)
+
+  sizeSqm         Int?
   transactionType PropertyTransactionType @default(SALE)
-
-  // ✅ optional; LAND -> null
+  type            PropertyType            @default(HOUSE)
   category        PropertyCategory?
 
-  bedrooms        Int?
-  bathrooms       Int?
-  sizeSqm         Int?
-  furnished       Boolean                @default(false)
-  parking         Boolean                @default(false)
-
-  status          PropertyStatus         @default(PENDING)
-  rejectionReason String?                @db.Text
-
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-
-  agent           AgentProfile           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent           AgentProfile            @relation(fields: [agentId], references: [id], onDelete: Cascade)
   images          PropertyImage[]
   leads           PropertyLead[]
   purchases       PropertyPurchase[]
@@ -169,6 +130,71 @@ model Property {
   @@index([createdAt])
   @@index([type])
   @@index([transactionType])
+}
+
+
+model PropertyImage {
+  id         String   @id @default(uuid())
+  propertyId String
+  url        String
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+model PropertyLead {
+  id         String       @id @default(uuid())
+  buyerId    String
+  propertyId String
+  createdAt  DateTime     @default(now())
+  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, propertyId], name: "buyer_lead_unique")
+  @@index([buyerId])
+  @@index([propertyId])
+}
+
+model SavedProperty {
+  id         String       @id @default(uuid())
+  buyerId    String
+  propertyId String
+  createdAt  DateTime     @default(now())
+  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, propertyId], name: "buyer_saved_unique")
+  @@index([buyerId])
+  @@index([propertyId])
+}
+
+model PropertyPurchase {
+  id         String       @id @default(uuid())
+  buyerId    String
+  propertyId String
+  createdAt  DateTime     @default(now())
+  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+  @@index([propertyId])
+}
+
+model Subscription {
+  id        String       @id @default(uuid())
+  agentId   String       @unique
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  plan      SubPlan      @default(FREE)
+  agent     AgentProfile @relation(fields: [agentId], references: [id])
+}
+
+enum AgentDocumentType {
+  BUSINESS_PROOF
+  ID_CARD
+  OTHER
 }
 
 enum PropertyType {
@@ -184,86 +210,10 @@ enum PropertyTransactionType {
   LEASE
 }
 
-// ✅ NO LAND here (LAND uses type)
 enum PropertyCategory {
   HOUSE
   APARTMENT
   COMMERCIAL
-}
-
-model PropertyImage {
-  id         String   @id @default(uuid())
-  propertyId String
-  url        String
-  createdAt  DateTime @default(now())
-
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@index([propertyId])
-}
-
-/**
- * ===============================
- * LEADS / SAVED / PURCHASED
- * ===============================
- */
-
-model PropertyLead {
-  id         String       @id @default(uuid())
-  buyerId    String
-  propertyId String
-  createdAt  DateTime     @default(now())
-
-  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@unique([buyerId, propertyId], name: "buyer_lead_unique")
-  @@index([buyerId])
-  @@index([propertyId])
-}
-
-model SavedProperty {
-  id         String       @id @default(uuid())
-  buyerId    String
-  propertyId String
-  createdAt  DateTime     @default(now())
-
-  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@unique([buyerId, propertyId], name: "buyer_saved_unique")
-  @@index([buyerId])
-  @@index([propertyId])
-}
-
-model PropertyPurchase {
-  id         String       @id @default(uuid())
-  buyerId    String
-  propertyId String
-  createdAt  DateTime     @default(now())
-
-  buyer      BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@index([buyerId])
-  @@index([propertyId])
-}
-
-/**
- * ===============================
- * SUBSCRIPTIONS
- * ===============================
- */
-
-model Subscription {
-  id        String       @id @default(uuid())
-  agentId   String       @unique
-  expiresAt DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  plan      SubPlan      @default(FREE)
-
-  agent     AgentProfile @relation(fields: [agentId], references: [id])
 }
 
 enum RoleType {

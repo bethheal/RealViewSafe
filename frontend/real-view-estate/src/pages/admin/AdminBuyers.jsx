@@ -9,8 +9,16 @@ export default function AdminBuyers() {
     (async () => {
       setLoading(true);
       try {
-        const data = await adminService.getBuyers();
-        setBuyers(data || []);
+        const payload = await adminService.getBuyers();
+
+        // ✅ supports both:
+        // 1) [...]
+        // 2) { data: [...] }
+        const list = Array.isArray(payload) ? payload : payload?.data;
+
+        setBuyers(Array.isArray(list) ? list : []);
+      } catch (e) {
+        setBuyers([]);
       } finally {
         setLoading(false);
       }
@@ -28,14 +36,18 @@ export default function AdminBuyers() {
 
       <div className="space-y-4">
         {buyers.length === 0 ? (
-          <div className="rounded-2xl bg-white shadow-sm p-6 text-gray-500">No buyers found.</div>
+          <div className="rounded-2xl bg-white shadow-sm p-6 text-gray-500">
+            No buyers found.
+          </div>
         ) : (
           buyers.map((b) => (
             <div key={b.id} className="rounded-2xl bg-white shadow-sm p-5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="font-extrabold text-gray-900">{b.user?.fullName}</div>
-                  <div className="text-sm text-gray-600">{b.user?.email} {b.user?.phone ? `• ${b.user.phone}` : ""}</div>
+                  <div className="text-sm text-gray-600">
+                    {b.user?.email} {b.user?.phone ? `• ${b.user.phone}` : ""}
+                  </div>
                 </div>
                 <div className="text-xs text-gray-500">
                   Joined: {b.user?.createdAt ? new Date(b.user.createdAt).toLocaleDateString() : "—"}
@@ -45,7 +57,7 @@ export default function AdminBuyers() {
               <div className="mt-4">
                 <div className="text-sm font-extrabold text-gray-900">Purchases</div>
 
-                {b.purchases?.length ? (
+                {Array.isArray(b.purchases) && b.purchases.length ? (
                   <div className="mt-2 overflow-x-auto">
                     <table className="min-w-[900px] w-full text-left text-sm">
                       <thead className="text-xs uppercase text-gray-500">
@@ -61,13 +73,16 @@ export default function AdminBuyers() {
                         {b.purchases.map((p) => (
                           <tr key={p.id}>
                             <td className="py-3 pr-4 text-gray-600">
-                              {new Date(p.createdAt).toLocaleString()}
+                              {p?.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
                             </td>
-                            <td className="py-3 pr-4 font-bold">{p.property?.title}</td>
-                            <td className="py-3 pr-4 text-gray-600">{p.property?.location}</td>
-                            <td className="py-3 pr-4">GHS {p.property?.price?.toLocaleString?.() ?? p.property?.price}</td>
+                            <td className="py-3 pr-4 font-bold">{p.property?.title || "—"}</td>
+                            <td className="py-3 pr-4 text-gray-600">{p.property?.location || "—"}</td>
+                            <td className="py-3 pr-4">
+                              GHS {p.property?.price?.toLocaleString?.() ?? p.property?.price ?? "—"}
+                            </td>
                             <td className="py-3 pr-4 text-gray-600">
-                              {p.property?.agent?.user?.fullName} ({p.property?.agent?.user?.email})
+                              {p.property?.agent?.user?.fullName || "—"}
+                              {p.property?.agent?.user?.email ? ` (${p.property.agent.user.email})` : ""}
                             </td>
                           </tr>
                         ))}

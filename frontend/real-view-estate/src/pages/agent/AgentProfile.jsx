@@ -4,6 +4,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
+import api from "../../lib/api";
 import { agentService } from "../../services/agent.service";
 
 function strength(pw) {
@@ -15,17 +16,27 @@ function strength(pw) {
   return s; // 0-4
 }
 
+function isValidUrl(u) {
+  try {
+    new URL(u);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function AgentProfile() {
   const [profile, setProfile] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // uploads (UI ready — backend must support multipart if you want real upload)
+  // uploads
   const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
   const [bizFile, setBizFile] = useState(null);
 
   // password change
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
-
   const [modal, setModal] = useState({ open: false, title: "", message: "" });
 
   useEffect(() => {
@@ -33,16 +44,25 @@ export default function AgentProfile() {
   }, []);
 
   const update = (k, v) => setProfile((p) => ({ ...p, [k]: v }));
-
   const pwScore = useMemo(() => strength(pw.next), [pw.next]);
+
+  const resolvedAvatarUrl = useMemo(() => {
+    const a = profile?.avatarUrl || "";
+    if (!a) return "";
+    if (isValidUrl(a)) return a;
+
+    if (a.startsWith("/")) {
+      const base = import.meta.env.VITE_API_URL || "";
+      return base ? `${base}${a}` : a;
+    }
+    return a;
+  }, [profile?.avatarUrl]);
 
   if (!profile) return <div className="text-gray-600 font-semibold">Loading...</div>;
 
   const saveProfile = async () => {
     setSaving(true);
     try {
-      // For real upload: use FormData and backend multipart.
-      // For now we only save profile fields (phone/company/bio).
       await agentService.updateProfile({
         phone: profile.phone,
         company: profile.company,
@@ -58,6 +78,45 @@ export default function AgentProfile() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadAvatar = async () => {
+    if (!avatarFile) {
+      setModal({ open: true, title: "Error", message: "Please choose an image first." });
+      return;
+    }
+
+    try {
+      setAvatarUploading(true);
+      const form = new FormData();
+      form.append("avatar", avatarFile);
+
+      // baseURL = VITE_API_URL + "/api"
+      const res = await api.patch("/auth/me/avatar", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const data = res?.data?.data ?? res?.data;
+      const newUrl = data?.user?.avatarUrl;
+
+      if (!newUrl) {
+        setModal({ open: true, title: "Error", message: "Upload succeeded but no avatarUrl returned." });
+        return;
+      }
+
+      setProfile((p) => ({ ...(p || {}), avatarUrl: newUrl }));
+      setAvatarFile(null);
+
+      setModal({ open: true, title: "Success", message: "Avatar uploaded successfully." });
+    } catch (e) {
+      setModal({
+        open: true,
+        title: "Upload failed",
+        message: e?.response?.data?.message || "Failed to upload avatar.",
+      });
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -137,16 +196,42 @@ export default function AgentProfile() {
           />
         </div>
 
-        <div className="mt-4 grid sm:grid-cols-2 gap-4">
+        <div className="mt-4 grid sm:grid-cols-2 gap-4 items-start">
           <div>
             <label className="text-sm font-bold text-gray-700">Avatar Upload</label>
-            <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
-            <p className="text-xs text-gray-500 mt-1">UI ready (needs backend upload endpoint).</p>
+
+            {resolvedAvatarUrl ? (
+              <img
+                src={resolvedAvatarUrl}
+                alt="avatar"
+                className="mt-2 w-20 h-20 rounded-full object-cover border"
+              />
+            ) : (
+              <p className="text-xs text-gray-500 mt-2">No avatar uploaded yet.</p>
+            )}
+
+            <input
+              className="mt-2"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+            />
+
+            <div className="mt-2">
+              <Button onClick={uploadAvatar} disabled={!avatarFile || avatarUploading}>
+                {avatarUploading ? "Uploading..." : "Upload Avatar"}
+              </Button>
+            </div>
           </div>
 
           <div>
             <label className="text-sm font-bold text-gray-700">Business Verification Upload</label>
-            <input type="file" accept="image/*,application/pdf" onChange={(e) => setBizFile(e.target.files?.[0] || null)} />
+            <input
+              className="mt-2"
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setBizFile(e.target.files?.[0] || null)}
+            />
             <p className="text-xs text-gray-500 mt-1">Upload CAC/License to verify.</p>
           </div>
         </div>

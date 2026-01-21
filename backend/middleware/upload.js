@@ -9,8 +9,12 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const safe = file.originalname.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
-    cb(null, `${Date.now()}-${safe}${ext}`);
+    const base = path.basename(file.originalname, ext);
+    const safeBase = base
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9._-]/g, "");
+
+    cb(null, `${Date.now()}-${safeBase}${ext}`);
   },
 });
 
@@ -22,5 +26,5 @@ function fileFilter(req, file, cb) {
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB each
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });

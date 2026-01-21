@@ -1,4 +1,4 @@
-// SidebarShell.jsx
+// Sidebarshell.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, Camera, Trash2, Loader2 } from "lucide-react";
@@ -24,7 +24,6 @@ function isValidUrl(u) {
 export default function SidebarShell({ title, links, children }) {
   const location = useLocation();
   const navigate = useNavigate();
-
   const { user, logout } = useAuth?.() || {};
 
   const [open, setOpen] = useState(false);
@@ -40,11 +39,12 @@ export default function SidebarShell({ title, links, children }) {
   const [avatarErr, setAvatarErr] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
 
-  // ---- CHANGE THESE IF YOUR BACKEND ROUTES DIFFER ----
+  // ✅ cache buster that only changes when upload succeeds
+  const [avatarVersion, setAvatarVersion] = useState(0);
+
+  // baseURL = VITE_API_URL + "/api" ✅ so these are correct:
   const ME_ENDPOINT = "/auth/me";
   const UPLOAD_AVATAR_ENDPOINT = "/auth/me/avatar";
-  const DELETE_AVATAR_ENDPOINT = "/auth/me/avatar";
-  // ---------------------------------------------------
 
   useEffect(() => setOpen(false), [location.pathname]);
 
@@ -56,8 +56,8 @@ export default function SidebarShell({ title, links, children }) {
       : [roles];
 
     if (roleNames.includes("ADMIN")) return "/admin/login";
-    if (roleNames.includes("AGENT")) return "/login"; // change to "/agent/login" if you have it
-    if (roleNames.includes("BUYER")) return "/login"; // change to "/buyer/login" if you have it
+    if (roleNames.includes("AGENT")) return "/login";
+    if (roleNames.includes("BUYER")) return "/login";
     return "/login";
   }, [user]);
 
@@ -66,7 +66,7 @@ export default function SidebarShell({ title, links, children }) {
     navigate(loginPath);
   };
 
-  // Fetch "me" profile (optional)
+  // Fetch "me" profile
   useEffect(() => {
     let alive = true;
 
@@ -76,8 +76,13 @@ export default function SidebarShell({ title, links, children }) {
         const res = await api.get(ME_ENDPOINT);
         if (!alive) return;
 
+        // backend returns: { user: {...} }
         const data = res?.data?.data ?? res?.data;
-        setProfile(data || null);
+        const me = data?.user || null;
+        setProfile(me);
+
+        // ✅ bump version once when we receive avatarUrl (helps refresh after login)
+        if (me?.avatarUrl) setAvatarVersion((v) => v + 1);
       } catch {
         if (alive) setProfile(null);
       } finally {
@@ -100,18 +105,29 @@ export default function SidebarShell({ title, links, children }) {
     return displayFullName.trim().split(" ")[0] || "User";
   }, [displayFullName]);
 
-  // avatarUrl
+  // avatarUrl (can be /uploads/... or full URL)
   const avatarUrl = useMemo(() => {
     const a = profile?.avatarUrl || user?.avatarUrl || "";
     return a && (a.startsWith("/") || isValidUrl(a)) ? a : "";
   }, [profile?.avatarUrl, user?.avatarUrl]);
 
   const resolvedAvatarUrl = useMemo(() => {
-    if (!avatarUrl) return "";
-    if (isValidUrl(avatarUrl)) return avatarUrl;
-    const base = import.meta.env.VITE_API_URL || "";
-    return base ? `${base}${avatarUrl}` : avatarUrl;
-  }, [avatarUrl]);
+  if (!avatarUrl) return "";
+  if (isValidUrl(avatarUrl)) return avatarUrl;
+
+  // remove any trailing slash from VITE_API_URL
+  const rawBase = import.meta.env.VITE_API_URL || "";
+  const base = rawBase.replace(/\/+$/, ""); // ✅ removes trailing /
+
+  return `${base}${avatarUrl}`; // avatarUrl already starts with "/"
+}, [avatarUrl]);
+
+
+  // ✅ stable final image src (no flicker)
+  const avatarSrc = useMemo(() => {
+    if (!resolvedAvatarUrl) return "";
+    return `${resolvedAvatarUrl}?v=${avatarVersion}`;
+  }, [resolvedAvatarUrl, avatarVersion]);
 
   useEffect(() => {
     return () => {
@@ -158,17 +174,20 @@ export default function SidebarShell({ title, links, children }) {
       const form = new FormData();
       form.append("avatar", file);
 
-      const res = await api.post(UPLOAD_AVATAR_ENDPOINT, form, {
+      const res = await api.patch(UPLOAD_AVATAR_ENDPOINT, form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       const data = res?.data?.data ?? res?.data;
-      const newUrl = data?.avatarUrl;
+      const newUrl = data?.user?.avatarUrl;
 
       if (!newUrl) {
         setAvatarErr("Upload succeeded but no avatarUrl returned by server.");
       } else {
         setProfile((p) => ({ ...(p || {}), avatarUrl: newUrl }));
+
+        // ✅ bump version ONCE -> refresh image without flicker
+        setAvatarVersion((v) => v + 1);
 
         // keep localStorage user in sync (optional)
         try {
@@ -189,28 +208,18 @@ export default function SidebarShell({ title, links, children }) {
     }
   }
 
-  async function handleRemoveAvatar() {
-    setAvatarErr("");
+  // Remove avatar (local-only)
+  function handleRemoveAvatar() {
+    setProfile((p) => ({ ...(p || {}), avatarUrl: null }));
+    setAvatarVersion((v) => v + 1);
     try {
-      setAvatarBusy(true);
-      await api.delete(DELETE_AVATAR_ENDPOINT);
-
-      setProfile((p) => ({ ...(p || {}), avatarUrl: null }));
-
-      try {
-        const stored = JSON.parse(localStorage.getItem("user") || "null");
-        if (stored) {
-          stored.avatarUrl = null;
-          localStorage.setItem("user", JSON.stringify(stored));
-        }
-      } catch {}
-
-      closeAvatarEditor();
-    } catch (err) {
-      setAvatarErr(err?.response?.data?.message || "Failed to remove avatar.");
-    } finally {
-      setAvatarBusy(false);
-    }
+      const stored = JSON.parse(localStorage.getItem("user") || "null");
+      if (stored) {
+        stored.avatarUrl = null;
+        localStorage.setItem("user", JSON.stringify(stored));
+      }
+    } catch {}
+    closeAvatarEditor();
   }
 
   const AvatarBlock = (
@@ -221,12 +230,15 @@ export default function SidebarShell({ title, links, children }) {
       title="Edit avatar"
       aria-label="Edit avatar"
     >
-      {resolvedAvatarUrl ? (
+      {avatarSrc ? (
         <img
-          src={resolvedAvatarUrl}
+          src={avatarSrc}
           alt={displayFullName}
           className="w-full h-full object-cover"
-          onError={() => setProfile((p) => ({ ...(p || {}), avatarUrl: null }))}
+        onError={(e) => {
+  console.warn("Avatar load failed:", e.currentTarget.src);
+}}
+
         />
       ) : (
         <span>{initials(displayFullName)}</span>
@@ -262,7 +274,6 @@ export default function SidebarShell({ title, links, children }) {
         ))}
       </nav>
 
-      {/* ✅ Mobile drawer logout + Desktop sidebar logout uses same logic */}
       <div className="pt-3 border-t border-gray-100">
         <button
           onClick={handleLogout}
@@ -301,7 +312,7 @@ export default function SidebarShell({ title, links, children }) {
             </div>
           </div>
 
-          {/* RIGHT (desktop/tablet) */}
+          {/* RIGHT */}
           <button
             onClick={handleLogout}
             className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-xl font-extrabold text-sm bg-gray-900 text-white hover:opacity-90 transition"
@@ -363,8 +374,8 @@ export default function SidebarShell({ title, links, children }) {
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-900 text-white flex items-center justify-center font-extrabold">
                 {previewUrl ? (
                   <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : resolvedAvatarUrl ? (
-                  <img src={resolvedAvatarUrl} alt={displayFullName} className="w-full h-full object-cover" />
+                ) : avatarSrc ? (
+                  <img src={avatarSrc} alt={displayFullName} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-2xl">{initials(displayFullName)}</span>
                 )}
@@ -402,9 +413,9 @@ export default function SidebarShell({ title, links, children }) {
               <button
                 type="button"
                 onClick={handleRemoveAvatar}
-                disabled={avatarBusy || (!resolvedAvatarUrl && !previewUrl)}
+                disabled={avatarBusy || (!avatarSrc && !previewUrl)}
                 className="rounded-xl border border-gray-200 py-2 px-3 font-extrabold text-gray-900 disabled:opacity-50 flex items-center gap-2"
-                title="Remove avatar"
+                title="Remove avatar (local only)"
               >
                 <Trash2 size={18} />
               </button>

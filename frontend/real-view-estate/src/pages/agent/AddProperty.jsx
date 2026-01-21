@@ -21,8 +21,9 @@ const empty = {
   bedrooms: "",
   bathrooms: "",
   sizeSqm: "",
-  furnished: false,
-  parking: false,
+
+  // ✅ store ONE furnishing choice
+  furnishing: "UNFURNISHED", // FURNISHED | SEMI_FURNISHED | UNFURNISHED
 
   media: [], // File[]
   imageUrls: [], // URL images (optional)
@@ -40,10 +41,15 @@ export default function AddProperty() {
 
   const isLand = form.type === "LAND";
 
-  // Prefill when editing (from Manage → navigate with state)
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  // Prefill when editing
   useEffect(() => {
     if (locationState?.property) {
       const p = locationState.property;
+
+      const furnishing =
+        p?.furnished ? "FURNISHED" : p?.semiFurnished ? "SEMI_FURNISHED" : "UNFURNISHED";
 
       setForm((prev) => ({
         ...prev,
@@ -59,10 +65,9 @@ export default function AddProperty() {
         bedrooms: p.bedrooms ?? "",
         bathrooms: p.bathrooms ?? "",
         sizeSqm: p.sizeSqm ?? "",
-        furnished: !!p.furnished,
-        parking: !!p.parking,
 
-        // if backend returns images as objects [{url}], normalize
+        furnishing,
+
         imageUrls: Array.isArray(p.images)
           ? p.images.map((img) => (typeof img === "string" ? img : img?.url)).filter(Boolean)
           : p.image
@@ -72,9 +77,7 @@ export default function AddProperty() {
     }
   }, [locationState]);
 
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-
-  // When switching to LAND, clear building-only fields + category
+  // When switching to LAND, clear building-only fields + category + furnishing
   useEffect(() => {
     if (form.type === "LAND") {
       setForm((p) => ({
@@ -82,10 +85,9 @@ export default function AddProperty() {
         category: "",
         bedrooms: "",
         bathrooms: "",
-        furnished: false,
+        furnishing: "UNFURNISHED",
       }));
     } else {
-      // if coming from LAND and category is empty, set a reasonable default
       setForm((p) => ({
         ...p,
         category: p.category || "HOUSE",
@@ -103,6 +105,21 @@ export default function AddProperty() {
     setForm((p) => ({ ...p, media: p.media.filter((_, i) => i !== idx) }));
   };
 
+  // ✅ convert ONE furnishing to 3 booleans (backend expects booleans)
+  const furnishingBooleans = useMemo(() => {
+    if (isLand) {
+      return { furnished: false, semiFurnished: false, unfurnished: false };
+    }
+
+    if (form.furnishing === "FURNISHED") {
+      return { furnished: true, semiFurnished: false, unfurnished: false };
+    }
+    if (form.furnishing === "SEMI_FURNISHED") {
+      return { furnished: false, semiFurnished: true, unfurnished: false };
+    }
+    return { furnished: false, semiFurnished: false, unfurnished: true };
+  }, [form.furnishing, isLand]);
+
   const buildFormData = (mode) => {
     const fd = new FormData();
 
@@ -112,33 +129,33 @@ export default function AddProperty() {
     fd.append("price", String(form.price || ""));
     fd.append("status", mode);
 
-    // ✅ NEW fields
     fd.append("type", form.type || "HOUSE");
     fd.append("transactionType", form.transactionType || "SALE");
 
-    // ✅ category optional; LAND -> empty so backend sets null
     fd.append("category", form.type === "LAND" ? "" : (form.category || ""));
 
-    // Common fields
     fd.append("sizeSqm", String(form.sizeSqm || ""));
-    fd.append("parking", String(!!form.parking));
 
     // Building-only fields (do not send for LAND)
     if (form.type !== "LAND") {
       fd.append("bedrooms", String(form.bedrooms || ""));
       fd.append("bathrooms", String(form.bathrooms || ""));
-      fd.append("furnished", String(!!form.furnished));
+
+      // ✅ consistent single-choice furnishing
+      fd.append("furnished", String(furnishingBooleans.furnished));
+      fd.append("semiFurnished", String(furnishingBooleans.semiFurnished));
+      fd.append("unfurnished", String(furnishingBooleans.unfurnished));
     } else {
-      // keep explicit blanks (backend normalizes)
       fd.append("bedrooms", "");
       fd.append("bathrooms", "");
       fd.append("furnished", "false");
+      fd.append("semiFurnished", "false");
+      fd.append("unfurnished", "false");
     }
 
-    // optional url images (keep if you want both URL + uploads)
     fd.append("images", JSON.stringify(form.imageUrls || []));
 
-    // ✅ MUST MATCH multer: upload.array("media", ... )
+    // MUST MATCH multer upload.array("media")
     (form.media || []).forEach((file) => fd.append("media", file));
 
     return fd;
@@ -197,7 +214,6 @@ export default function AddProperty() {
             <Input label="Location" value={form.location} onChange={(e) => set("location", e.target.value)} required />
           </div>
 
-          {/* Type + Transaction */}
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="text-sm font-bold text-gray-700">Type</label>
@@ -227,7 +243,6 @@ export default function AddProperty() {
             </div>
           </div>
 
-          {/* Category (not needed for LAND) + Size */}
           <div className="grid sm:grid-cols-2 gap-4 mt-4">
             {!isLand ? (
               <div>
@@ -243,9 +258,7 @@ export default function AddProperty() {
                 </select>
               </div>
             ) : (
-              <div className="text-sm font-bold text-gray-700 flex items-end">
-                LAND (no category needed)
-              </div>
+              <div className="text-sm font-bold text-gray-700 flex items-end">LAND (no category needed)</div>
             )}
 
             <Input
@@ -256,38 +269,28 @@ export default function AddProperty() {
             />
           </div>
 
-          {/* Bedrooms/Bathrooms (hide for LAND) */}
           {!isLand && (
             <div className="grid sm:grid-cols-2 gap-4 mt-4">
-              <Input
-                label="Bedrooms"
-                type="number"
-                value={form.bedrooms}
-                onChange={(e) => set("bedrooms", e.target.value)}
-              />
-              <Input
-                label="Bathrooms"
-                type="number"
-                value={form.bathrooms}
-                onChange={(e) => set("bathrooms", e.target.value)}
-              />
+              <Input label="Bedrooms" type="number" value={form.bedrooms} onChange={(e) => set("bedrooms", e.target.value)} />
+              <Input label="Bathrooms" type="number" value={form.bathrooms} onChange={(e) => set("bathrooms", e.target.value)} />
             </div>
           )}
 
-          {/* Furnished/Parking */}
-          <div className="mt-4 flex flex-wrap gap-3">
-            {!isLand && (
-              <label className="inline-flex items-center gap-2 font-bold text-sm text-gray-700">
-                <input type="checkbox" checked={form.furnished} onChange={(e) => set("furnished", e.target.checked)} />
-                Furnished
-              </label>
-            )}
-
-            <label className="inline-flex items-center gap-2 font-bold text-sm text-gray-700">
-              <input type="checkbox" checked={form.parking} onChange={(e) => set("parking", e.target.checked)} />
-              {isLand ? "Road / Parking Access" : "Parking"}
-            </label>
-          </div>
+          {/* ✅ single-choice furnishing */}
+          {!isLand && (
+            <div className="mt-4">
+              <label className="text-sm font-bold text-gray-700">Furnishing</label>
+              <select
+                value={form.furnishing}
+                onChange={(e) => set("furnishing", e.target.value)}
+                className="mt-1 w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                <option value="UNFURNISHED">UNFURNISHED</option>
+                <option value="SEMI_FURNISHED">SEMI-FURNISHED</option>
+                <option value="FURNISHED">FURNISHED</option>
+              </select>
+            </div>
+          )}
 
           <div className="mt-4">
             <label className="text-sm font-bold text-gray-700">Description</label>
@@ -303,34 +306,18 @@ export default function AddProperty() {
 
           <div className="mt-4">
             <label className="text-sm font-bold text-gray-700">Media Upload (Images / Videos)</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              onChange={onPickMedia}
-              className="mt-2 block w-full text-sm"
-            />
+            <input type="file" multiple accept="image/*,video/*" onChange={onPickMedia} className="mt-2 block w-full text-sm" />
 
             {form.media.length > 0 && (
               <div className="mt-3 space-y-2">
                 {form.media.map((f, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3 py-2"
-                  >
+                  <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
                     <p className="text-sm font-bold text-gray-800 truncate">{f.name}</p>
-                    <button
-                      type="button"
-                      onClick={() => removeMedia(idx)}
-                      className="text-sm font-extrabold text-red-600"
-                    >
+                    <button type="button" onClick={() => removeMedia(idx)} className="text-sm font-extrabold text-red-600">
                       Remove
                     </button>
                   </div>
                 ))}
-                <p className="text-xs text-gray-500">
-                  Note: backend must support uploads (multipart/FormData). UI is ready.
-                </p>
               </div>
             )}
           </div>
@@ -358,8 +345,8 @@ export default function AddProperty() {
           </div>
 
           <div className="mt-4 text-xs text-gray-600">
-            After submitting, admin will <span className="font-extrabold">approve</span> or{" "}
-            <span className="font-extrabold">reject</span>. Rejected items return to Drafts.
+            After submitting, admin will <span className="font-extrabold">approve</span> or <span className="font-extrabold">reject</span>.
+            Rejected items return to Drafts.
           </div>
         </Card>
       </form>

@@ -1,9 +1,18 @@
 // BuyerProfile.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import buyerService from "../../services/buyer.service";
+
+function isValidUrl(u) {
+  try {
+    new URL(u);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function BuyerProfile() {
   const [profile, setProfile] = useState(null);
@@ -15,6 +24,19 @@ export default function BuyerProfile() {
   useEffect(() => {
     buyerService.getProfile().then((res) => setProfile(res.data));
   }, []);
+
+  const resolvedAvatarUrl = useMemo(() => {
+    const a = profile?.avatarUrl || "";
+    if (!a) return "";
+    if (isValidUrl(a)) return a;
+
+    // If it's /uploads/...
+    if (a.startsWith("/")) {
+      const base = import.meta.env.VITE_API_URL || "";
+      return base ? `${base}${a}` : a;
+    }
+    return a;
+  }, [profile?.avatarUrl]);
 
   if (!profile) return <div className="text-gray-600 font-semibold">Loading...</div>;
 
@@ -70,11 +92,11 @@ export default function BuyerProfile() {
               label="Avatar Image URL"
               value={profile.avatarUrl || ""}
               onChange={(e) => update("avatarUrl", e.target.value)}
-              placeholder="https://..."
+              placeholder="https://... or /uploads/..."
             />
-            {profile.avatarUrl ? (
+            {resolvedAvatarUrl ? (
               <img
-                src={profile.avatarUrl}
+                src={resolvedAvatarUrl}
                 alt="avatar"
                 className="mt-3 w-20 h-20 rounded-full object-cover border"
               />

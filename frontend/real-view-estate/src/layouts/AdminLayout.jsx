@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {Outlet } from "react-router-dom";
 import SidebarShell from "./Sidebarshell";
@@ -7,7 +6,6 @@ import { CreditCard, Home, LayoutDashboard, User2Icon, UserCheck2, UserCircle } 
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const links = [
     // Define admin-specific links here
     { to: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18}/> },
