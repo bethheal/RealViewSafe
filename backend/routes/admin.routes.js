@@ -7,11 +7,14 @@ import {
   listAgents,
   suspendAgent,
   listBuyersWithPurchases,
-  listPendingProperties,
+  listProperties,
   reviewProperty,
+  addAdminProperty,
+  updateAdminProperty,
   listSubscriptions,
   assignSubscription,
 } from "../controllers/admin.controller.js";
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -27,9 +30,11 @@ router.patch("/agents/:id/suspend", suspendAgent);
 // buyers + purchases
 router.get("/buyers", listBuyersWithPurchases);
 
-// properties queue
-router.get("/properties", listPendingProperties);
+// properties (all statuses; optional ?status=)
+router.get("/properties", listProperties);
 router.patch("/properties/:id/review", reviewProperty);
+router.post("/properties", upload.array("media", 10), addAdminProperty);
+router.patch("/properties/:id", upload.array("media", 10), updateAdminProperty);
 
 // subscriptions
 router.get("/subscriptions", listSubscriptions);

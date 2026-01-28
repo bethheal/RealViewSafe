@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+if (!paystackSecretKey) {
+  console.warn("PAYSTACK_SECRET_KEY is not set in backend/.env");
+}
 
 import express from "express";
 import cors from "cors";
@@ -10,8 +14,11 @@ import prisma from "./prisma/client.js";
 import adminRoutes from "./routes/admin.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import agentRoutes from "./routes/agent.routes.js";
+import buyerRoutes from "./routes/buyer.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
+import termsRoutes from "./routes/terms.routes.js";
+import paymentsRoutes from "./routes/payments.routes.js";
 
 const app = express();
 
@@ -60,9 +67,12 @@ app.use(
 // routes
 app.use("/api/auth", authRoutes);
 app.use("/api/agent", agentRoutes);
+app.use("/api/buyer", buyerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/terms", termsRoutes);
+app.use("/api/payments", paymentsRoutes);
 
 app.get("/", (req, res) => {
   res.send("✅ RealViewEstate API is running");

@@ -12,46 +12,52 @@ import FeatureCard from "./FeaturedCard";
 const FEATURES = [
   {
     icon: UserCog,
-    title: "Expert Technicians",
+    title: "Why We Are the Best",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
+      "We prioritize excellence, transparency, and affordability in every project, delivering expert guidance and quality workmanship from start to finish.",
   },
   {
     icon: Wrench,
-    title: "Professional Service",
+    title: "Our Expertise",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
+      "Years of construction and real estate experience help us deliver tailored solutions across residential and commercial projects.",
   },
   {
     icon: Headphones,
-    title: "Great Support",
+    title: "Our Professional Services",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
+      "House rentals, sales, land acquisitions, commercial leasing, plus end-to-end construction planning and execution.",
   },
   {
     icon: Settings,
-    title: "Technical Skills",
+    title: "Get Support",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
+      "Reach our dedicated support team by phone, email, or live chat for help with listings, purchases, or consultations.",
   },
   {
     icon: Star,
+    title: "Technical Skills",
+    description:
+      "We use modern construction methods, sustainable practices, and digital marketing to boost accuracy and efficiency.",
+  },
+  {
+    icon: ThumbsUp,
     title: "Highly Recommended",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
-    highlight: true,
+      "Clients recommend us for professionalism, attention to detail, and unwavering dedication to their projects.",
+    // highlight: true,
   },
   {
     icon: ThumbsUp,
     title: "Positive Reviews",
     description:
-      "Usage of the Internet is becoming more common due to rapid advancement of technology and power.",
+      "Consistent praise for transparent communication, quality results, and affordability.",
   },
 ];
 
 export default function WhyBest() {
   return (
-    <section id='services' className="bg-gray-50 scroll-mt-24 py-20">
+    <section id="services" className="bg-gray-50 scroll-mt-24 py-20">
       <div className="mx-auto max-w-7xl px-6">
         {/* Heading */}
         <div className="mb-14 text-center">
@@ -59,7 +65,8 @@ export default function WhyBest() {
             Why we are the best
           </h2>
           <p className="mt-3 text-gray-500 max-w-xl mx-auto">
-            Who are in extremely love with eco friendly system.
+            Real View Estate and Construction is built on trust, results, and a
+            client-first mindset.
           </p>
         </div>
 
@@ -72,7 +79,7 @@ export default function WhyBest() {
                 icon={<Icon size={30} />}
                 title={title}
                 description={description}
-                highlight={highlight}
+                // highlight={highlight}
               />
             )
           )}

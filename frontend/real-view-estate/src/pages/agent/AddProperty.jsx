@@ -4,6 +4,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import { agentService } from "../../services/agent.service";
+import adminService from "../../services/admin.service";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 const empty = {
@@ -33,15 +34,31 @@ export default function AddProperty() {
   const [form, setForm] = useState(empty);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ open: false, status: "idle", message: "" });
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
 
   const navigate = useNavigate();
-  const locationState = useLocation()?.state;
+  const location = useLocation();
+  const locationState = location?.state;
   const params = useParams();
   const editingId = params?.id || locationState?.property?.id || null;
+  const isAdmin = location?.pathname?.startsWith("/admin") || locationState?.asAdmin;
 
   const isLand = form.type === "LAND";
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const missingProfileItems = useMemo(() => {
+    if (isAdmin || profileLoading || profileError || !profile) return [];
+    const missing = [];
+    if (!profile.phone) missing.push("Phone number");
+    if (!profile.company && !profile.fullName) missing.push("Business or personal name");
+    if (!profile.verified) missing.push("Verification documents (upload in profile)");
+    return missing;
+  }, [isAdmin, profileLoading, profileError, profile]);
+
+  const showProfileWarning = !isAdmin && !profileLoading && (profileError || missingProfileItems.length > 0);
 
   // Prefill when editing
   useEffect(() => {
@@ -76,6 +93,37 @@ export default function AddProperty() {
       }));
     }
   }, [locationState]);
+
+  // Load agent profile for non-admin submissions (warning only)
+  useEffect(() => {
+    if (isAdmin) {
+      setProfileLoading(false);
+      return;
+    }
+
+    let alive = true;
+    agentService
+      .getProfile()
+      .then((res) => {
+        if (!alive) return;
+        const data = res?.data?.data ?? res?.data;
+        setProfile(data || null);
+        setProfileError(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setProfile(null);
+        setProfileError(true);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setProfileLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [isAdmin]);
 
   // When switching to LAND, clear building-only fields + category + furnishing
   useEffect(() => {
@@ -161,7 +209,7 @@ export default function AddProperty() {
     return fd;
   };
 
-  const submit = async (e, mode = "PENDING") => {
+  const submit = async (e, mode = isAdmin ? "APPROVED" : "PENDING") => {
     e.preventDefault();
     setLoading(true);
     setModal({ open: true, status: "loading", message: "Submitting your property..." });
@@ -170,18 +218,32 @@ export default function AddProperty() {
       const fd = buildFormData(mode);
 
       if (editingId) {
-        await agentService.updateProperty(editingId, fd);
+        if (isAdmin && !adminService.updateProperty) {
+          throw new Error("Admin edit is not available yet.");
+        }
+        if (isAdmin) {
+          await adminService.updateProperty(editingId, fd);
+        } else {
+          await agentService.updateProperty(editingId, fd);
+        }
       } else {
-        await agentService.addProperty(fd);
+        if (isAdmin) {
+          await adminService.addProperty(fd);
+        } else {
+          await agentService.addProperty(fd);
+        }
       }
 
       setModal({
         open: true,
         status: "success",
-        message:
-          mode === "DRAFT"
-            ? "Saved to Drafts. You can edit and submit anytime."
-            : "Submitted! Admin will review and approve or reject.",
+        message: isAdmin
+          ? mode === "DRAFT"
+            ? "Saved as draft. You can publish anytime."
+            : "Published! Listing is now visible to buyers."
+          : mode === "DRAFT"
+          ? "Saved to Drafts. You can edit and submit anytime."
+          : "Submitted! Admin will review and approve or reject.",
       });
 
       if (!editingId) setForm(empty);
@@ -203,9 +265,43 @@ export default function AddProperty() {
           {editingId ? "Edit Property" : "Add Property"}
         </h1>
         <p className="text-gray-600 mt-1">
-          {editingId ? "Update your listing details." : "Create a listing for admin approval."}
+          {editingId
+            ? "Update your listing details."
+            : isAdmin
+            ? "Publish a listing directly to the marketplace."
+            : "Create a listing for admin approval."}
         </p>
       </div>
+
+      {showProfileWarning && (
+        <Card title="Profile check" subtitle="Recommended before submission">
+          {profileError ? (
+            <p className="text-sm font-semibold text-yellow-800">
+              We couldn’t load your profile details. You can still submit, but complete your profile to speed approval.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-yellow-800">
+                Your profile is missing:
+              </p>
+              <ul className="mt-2 list-disc pl-5 text-sm text-yellow-900 font-semibold space-y-1">
+                {missingProfileItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          <div className="mt-4 flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/agent/profile")}>
+              Complete Profile
+            </Button>
+            <span className="text-xs text-gray-600 font-semibold">
+              Profile completion does not block submission.
+            </span>
+          </div>
+        </Card>
+      )}
 
       <form className="grid lg:grid-cols-3 gap-6">
         <Card title="Property Details" subtitle="Make it clear and attractive" className="lg:col-span-2">
@@ -305,8 +401,8 @@ export default function AddProperty() {
           </div>
 
           <div className="mt-4">
-            <label className="text-sm font-bold text-gray-700">Media Upload (Images / Videos)</label>
-            <input type="file" multiple accept="image/*,video/*" onChange={onPickMedia} className="mt-2 block w-full text-sm" />
+            <label className="text-sm font-bold text-gray-700">Image Uploads</label>
+            <input type="file" multiple accept="image/*" onChange={onPickMedia} className="mt-2 block w-full text-sm" />
 
             {form.media.length > 0 && (
               <div className="mt-3 space-y-2">
@@ -333,8 +429,14 @@ export default function AddProperty() {
           />
 
           <div className="mt-4 grid gap-2">
-            <Button disabled={loading} onClick={(e) => submit(e, "PENDING")}>
-              {loading ? "Submitting..." : editingId ? "Save Changes" : "Submit for Review"}
+            <Button disabled={loading} onClick={(e) => submit(e)}>
+              {loading
+                ? "Submitting..."
+                : editingId
+                ? "Save Changes"
+                : isAdmin
+                ? "Publish Property"
+                : "Submit for Review"}
             </Button>
 
             {!editingId && (
@@ -345,8 +447,14 @@ export default function AddProperty() {
           </div>
 
           <div className="mt-4 text-xs text-gray-600">
-            After submitting, admin will <span className="font-extrabold">approve</span> or <span className="font-extrabold">reject</span>.
-            Rejected items return to Drafts.
+            {isAdmin ? (
+              <>Published listings appear immediately to buyers.</>
+            ) : (
+              <>
+                After submitting, admin will <span className="font-extrabold">approve</span> or{" "}
+                <span className="font-extrabold">reject</span>. Rejected items return to Drafts.
+              </>
+            )}
           </div>
         </Card>
       </form>

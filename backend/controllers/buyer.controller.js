@@ -1,9 +1,6 @@
 import prisma from "../prisma/client.js";
 import { whatsappLink } from "../utils/whatsapp.js";
 
-import prisma from "../prisma/client.js";
-import { whatsappLink } from "../utils/whatsapp.js";
-
 export const contactAgent = async (req, res) => {
   try {
     const { propertyId } = req.body;
@@ -25,7 +22,7 @@ export const contactAgent = async (req, res) => {
 
     // ✅ avoid unique-crash
     await prisma.propertyLead.upsert({
-      where: { buyerId_propertyId: { buyerId: buyer.id, propertyId: property.id } },
+      where: { buyer_lead_unique: { buyerId: buyer.id, propertyId: property.id } },
       create: { buyerId: buyer.id, propertyId: property.id },
       update: {},
     });
@@ -52,7 +49,7 @@ export const saveProperty = async (req, res) => {
     if (!buyer) return res.status(404).json({ message: "Buyer profile not found" });
 
     await prisma.savedProperty.upsert({
-      where: { buyerId_propertyId: { buyerId: buyer.id, propertyId } },
+      where: { buyer_saved_unique: { buyerId: buyer.id, propertyId } },
       create: { buyerId: buyer.id, propertyId },
       update: {},
     });

@@ -98,11 +98,18 @@ export const signup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(trialStartedAt);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+
     const user = await prisma.user.create({
       data: {
         fullName: fullName.trim(),
         email: normalizedEmail,
         passwordHash: hashedPassword,
+        trialStartedAt,
+        trialEndsAt,
+        subscriptionStatus: "TRIAL",
         roles: {
           connectOrCreate: {
             where: { name: normalizedRole },

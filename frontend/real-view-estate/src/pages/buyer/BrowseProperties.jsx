@@ -4,6 +4,7 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import PropertyCard from "../../components/property/PropertyCard";
 import buyerService from "../../services/buyer.service";
+import { REALVIEW_CONTACT } from "../../constants/realviewContact";
 
 const cleanPhone = (phone) => String(phone || "").replace(/\D/g, "");
 
@@ -32,10 +33,12 @@ export default function BrowseProperties() {
     return items.filter((p) => `${p.title} ${p.location}`.toLowerCase().includes(needle));
   }, [items, q]);
 
-  const openWhatsApp = (phone, title) => {
+  const openWhatsApp = (phone, title, isRealViewContact) => {
     const p = cleanPhone(phone);
     if (!p) return alert("Agent phone number not available");
-    const msg = `Hello, I'm interested in "${title}".`;
+    const msg = isRealViewContact
+      ? `Hello, I'm interested in "${title}" listed by Real View.`
+      : `Hello, I'm interested in "${title}".`;
     window.open(`https://wa.me/${p}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -94,13 +97,22 @@ export default function BrowseProperties() {
         {filtered.map((p) => {
           const isSaved = savedIds.has(p.id);
 
-          // ✅ phone from backend include
+          const isAdminListing = Boolean(p?.listedByAdmin);
           const agentPhone = p?.agent?.user?.phone || "";
+          const isRealViewContact = isAdminListing || !agentPhone;
+          const contactPhone = isRealViewContact ? REALVIEW_CONTACT.phone : agentPhone;
+
+          const contactFooter = isRealViewContact ? (
+            <div className="text-xs font-semibold text-gray-700">
+              Real View Contact: {REALVIEW_CONTACT.phone} | {REALVIEW_CONTACT.email}
+            </div>
+          ) : null;
 
           return (
             <PropertyCard
               key={p.id}
               property={p}
+              footer={contactFooter}
               actions={
                 <>
                   <Button
@@ -115,18 +127,18 @@ export default function BrowseProperties() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={!cleanPhone(agentPhone)}
-                    onClick={() => callAgent(agentPhone)}
+                    disabled={!cleanPhone(contactPhone)}
+                    onClick={() => callAgent(contactPhone)}
                   >
-                    Call Agent
+                    {isRealViewContact ? "Call Real View" : "Call Agent"}
                   </Button>
 
                   <Button
                     size="sm"
-                    disabled={!cleanPhone(agentPhone)}
-                    onClick={() => openWhatsApp(agentPhone, p.title)}
+                    disabled={!cleanPhone(contactPhone)}
+                    onClick={() => openWhatsApp(contactPhone, p.title, isRealViewContact)}
                   >
-                    Chat on WhatsApp
+                    {isRealViewContact ? "Chat Real View" : "Chat on WhatsApp"}
                   </Button>
                 </>
               }

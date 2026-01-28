@@ -1,30 +1,38 @@
 import React from "react";
 
+import { formatGhs, resolveMediaUrl } from "../lib/media";
+
 export default function PropertyCard({ property, onView }) {
+  const firstImage = Array.isArray(property?.images) ? property.images[0] : null;
+  const rawImage =
+    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
+    property?.image ||
+    "";
+  const imageUrl =
+    resolveMediaUrl(rawImage) || "https://via.placeholder.com/800x500?text=Property";
+
   return (
     <div
       className="
-        group rounded-2xl  bg-white transition-all duration-300
+        group rounded-2xl bg-white transition-all duration-300
         hover:bg-[#8B6F2F] hover:text-white hover:shadow-xl
       "
     >
       <img
-        src={property.image}
+        src={imageUrl}
         alt={property.title}
         className="h-56 w-full rounded-t-2xl object-cover"
       />
 
       <div className="p-6">
-        <h3 className="mb-1 text-lg font-semibold">
-          {property.title}
-        </h3>
+        <h3 className="mb-1 text-lg font-semibold">{property.title}</h3>
 
         <p className="mb-3 flex items-center gap-1 text-sm text-gray-500 group-hover:text-white/80">
-          📍 {property.location}
+          Location: {property.location}
         </p>
 
         <p className="mb-5 text-lg font-bold text-[#8B6F2F] group-hover:text-white">
-          ${property.price}
+          {formatGhs(property.price)}
         </p>
 
         <button

@@ -21,7 +21,7 @@ function isValidUrl(u) {
   }
 }
 
-export default function SidebarShell({ title, links, children }) {
+export default function SidebarShell({ title, links, children, logoSrc, logoAlt = "Real View logo" }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth?.() || {};
@@ -253,10 +253,19 @@ export default function SidebarShell({ title, links, children }) {
   const SidebarContent = (
     <div className="h-full flex flex-col">
       <div className="px-3 pb-4 border-b border-gray-100">
-        <h2 className="text-xl font-extrabold text-[#F37A2A] mt-1">{title}</h2>
+        <div className="flex items-center gap-3">
+          {logoSrc && (
+            <img
+              src={logoSrc}
+              alt={logoAlt}
+              className="h-12 w-12 object-contain"
+            />
+          )}
+          <h2 className="text-xl font-extrabold text-[#F37A2A] mt-1">{title}</h2>
+        </div>
       </div>
 
-      <nav className="pt-4 space-y-2 flex-1">
+      <nav className="pt-4 space-y-2 flex-1 min-h-0 overflow-y-auto">
         {links.map((l) => (
           <NavLink
             key={l.to}
@@ -274,7 +283,17 @@ export default function SidebarShell({ title, links, children }) {
         ))}
       </nav>
 
-      <div className="pt-3 border-t border-gray-100">
+      <div className="pt-3 border-t border-gray-100 lg:hidden">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-extrabold text-sm bg-gray-900 text-white hover:opacity-90 transition"
+        >
+          <LogOut size={16} />
+          Logout
+        </button>
+      </div>
+
+      <div className="pt-3 border-t border-gray-100 hidden lg:block">
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-extrabold text-sm bg-gray-900 text-white hover:opacity-90 transition"
@@ -332,7 +351,7 @@ export default function SidebarShell({ title, links, children }) {
           {open && (
             <div className="lg:hidden fixed inset-0 z-50">
               <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
-              <div className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[360px] bg-white p-4 shadow-2xl">
+              <div className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[360px] bg-white p-4 shadow-2xl flex flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <button
                     className="p-2 rounded-xl hover:bg-gray-100"
@@ -342,7 +361,9 @@ export default function SidebarShell({ title, links, children }) {
                     <X />
                   </button>
                 </div>
-                {SidebarContent}
+                <div className="flex-1 min-h-0">
+                  {SidebarContent}
+                </div>
               </div>
             </div>
           )}

@@ -3,6 +3,13 @@ import prisma from "../prisma/client.js";
 /* ---------------- helpers ---------------- */
 const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
 const toNumOrNull = (v) => (v === undefined || v === null || v === "" ? null : Number(v));
+const parsePrice = (v) => {
+  if (v === undefined || v === null || v === "") return null;
+  const num = Number(String(v).replace(/,/g, ""));
+  if (!Number.isFinite(num)) return null;
+  return Math.round(num);
+};
+const AGENT_ALLOWED_STATUSES = ["DRAFT", "PENDING"];
 
 function normalizeFurnishing({ furnished, semiFurnished, unfurnished }) {
   const f = toBool(furnished);
@@ -78,8 +85,17 @@ export async function addProperty(req, res) {
     if (!title || !location || price === undefined || price === null || price === "") {
       return res.status(400).json({ message: "title, location, and price are required" });
     }
+    const priceValue = parsePrice(price);
+    if (priceValue === null) {
+      return res.status(400).json({ message: "price must be a valid number" });
+    }
 
     const furnishing = normalizeFurnishing({ furnished, semiFurnished, unfurnished });
+
+    const requestedStatus = String(status || "PENDING").toUpperCase();
+    if (!AGENT_ALLOWED_STATUSES.includes(requestedStatus)) {
+      return res.status(400).json({ message: "Invalid status for agent submission" });
+    }
 
     const files = Array.isArray(req.files) ? req.files : [];
     const imageCreates = files.map((file) => ({ url: `/uploads/${file.filename}` }));
@@ -90,9 +106,9 @@ export async function addProperty(req, res) {
         title,
         location,
         description: description || null,
-        price: Number(price),
+        price: priceValue,
 
-        status: status || "PENDING",
+        status: requestedStatus,
         type: type || "HOUSE",
         transactionType: transactionType || "SALE",
         category: category ? category : null,
@@ -129,7 +145,7 @@ export async function updateProperty(req, res) {
 
     const existing = await prisma.property.findUnique({
       where: { id: propertyId },
-      select: { agentId: true },
+      select: { agentId: true, status: true },
     });
 
     if (!existing) return res.status(404).json({ message: "Property not found" });
@@ -152,13 +168,30 @@ export async function updateProperty(req, res) {
       unfurnished,
     } = req.body;
 
+    if (existing.status === "SOLD") {
+      return res.status(400).json({ message: "Sold properties cannot be edited" });
+    }
+
     const data = {};
     if (title !== undefined) data.title = title;
     if (location !== undefined) data.location = location;
     if (description !== undefined) data.description = description || null;
-    if (price !== undefined) data.price = Number(price);
+    if (price !== undefined) {
+      const priceValue = parsePrice(price);
+      if (priceValue === null) {
+        return res.status(400).json({ message: "price must be a valid number" });
+      }
+      data.price = priceValue;
+    }
 
-    if (status !== undefined) data.status = status;
+    if (status !== undefined) {
+      const requestedStatus = String(status || "").toUpperCase();
+      if (!AGENT_ALLOWED_STATUSES.includes(requestedStatus)) {
+        return res.status(400).json({ message: "Invalid status for agent update" });
+      }
+      data.status = requestedStatus;
+      data.rejectionReason = null;
+    }
     if (type !== undefined) data.type = type;
     if (transactionType !== undefined) data.transactionType = transactionType;
     if (category !== undefined) data.category = category ? category : null;
@@ -282,11 +315,14 @@ export async function markSold(req, res) {
 
     const existing = await prisma.property.findUnique({
       where: { id: propertyId },
-      select: { agentId: true },
+      select: { agentId: true, status: true },
     });
 
     if (!existing) return res.status(404).json({ message: "Property not found" });
     if (existing.agentId !== agentProfileId) return res.status(403).json({ message: "Forbidden" });
+    if (existing.status !== "APPROVED") {
+      return res.status(400).json({ message: "Only approved properties can be sold" });
+    }
 
     const updated = await prisma.property.update({
       where: { id: propertyId },
@@ -298,5 +334,63 @@ export async function markSold(req, res) {
   } catch (err) {
     console.error("markSold error:", err);
     res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+/* ---------------- profile ---------------- */
+export async function getProfile(req, res) {
+  try {
+    const agent = await prisma.agentProfile.findUnique({
+      where: { userId: req.user.id },
+      include: { user: true },
+    });
+
+    if (!agent) return res.status(404).json({ message: "Agent profile not found" });
+
+    return res.json({
+      fullName: agent.user.fullName,
+      email: agent.user.email,
+      phone: agent.user.phone,
+      company: agent.company || "",
+      bio: agent.bio || "",
+      verified: agent.verified,
+      avatarUrl: agent.avatarUrl || "",
+    });
+  } catch (err) {
+    console.error("getProfile error:", err);
+    return res.status(500).json({ message: err.message || "Server error" });
+  }
+}
+
+export async function updateProfile(req, res) {
+  try {
+    const { phone, company, bio } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { phone: phone === null ? null : phone ?? undefined },
+    });
+
+    const updatedAgent = await prisma.agentProfile.upsert({
+      where: { userId: req.user.id },
+      create: { userId: req.user.id, company: company || "", bio: bio || "" },
+      update: {
+        company: company === null ? "" : company ?? undefined,
+        bio: bio === null ? "" : bio ?? undefined,
+      },
+    });
+
+    return res.json({
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      company: updatedAgent.company || "",
+      bio: updatedAgent.bio || "",
+      verified: updatedAgent.verified,
+      avatarUrl: updatedAgent.avatarUrl || "",
+    });
+  } catch (err) {
+    console.error("updateProfile error:", err);
+    return res.status(400).json({ message: err.message || "Failed to update profile" });
   }
 }

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { logo } from "../assets";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function Navbar() {
   const navItems = useMemo(
     () => [
       { name: "Home", id: "home" },
+      { name: "About", id: "about" },
       { name: "Services", id: "services" },
       { name: "Properties", id: "properties" },
       { name: "Contact", id: "contact" },
@@ -37,10 +39,11 @@ export default function Navbar() {
             className="text-white font-semibold tracking-wide flex items-center gap-2"
             onClick={() => setOpen(false)}
           >
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-              RV
-            </span>
-            <span className="text-lg">RealView</span>
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
+  <img src={logo} alt="logo" className="w-full h-full object-contain" />
+</span>
+<span className="text-lg">RealView</span>
+
           </Link>
 
           {/* Desktop Nav */}

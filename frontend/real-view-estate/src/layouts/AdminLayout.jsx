@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import {Outlet } from "react-router-dom";
 import SidebarShell from "./Sidebarshell";
 import { CreditCard, Home, LayoutDashboard, User2Icon, UserCheck2, UserCircle } from "lucide-react";
+import { logo } from "../assets";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
@@ -20,7 +21,7 @@ export default function AdminLayout() {
   return (
     <div >
       {/* sidebar */}
-       <SidebarShell title="Real View" links={links}>
+       <SidebarShell title="Real View" links={links} logoSrc={logo}>
       <Outlet />
     </SidebarShell> 
 

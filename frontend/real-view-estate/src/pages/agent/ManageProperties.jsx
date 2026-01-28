@@ -25,7 +25,8 @@ export default function ManageProperties() {
     try {
       // must match your backend "agentMyProperties" in property.controller.js :contentReference[oaicite:1]{index=1}
       const res = await agentService.myProperties();
-      setItems(res.data || []);
+      const list = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+      setItems(list);
     } finally {
       setLoading(false);
     }
@@ -122,35 +123,45 @@ export default function ManageProperties() {
           <EmptyState title="No properties yet" desc="Create your first listing." />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {list.map((p) => (
-              <PropertyCard
-                key={p.id}
-                property={p}
-                actions={
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <div className="mr-2">{statusBadge(p.status)}</div>
-
-                    <Button variant="outline" size="sm" onClick={() => openEdit(p)} disabled={p.status === "SOLD"}>
-                      Edit
-                    </Button>
-
-                    <Button variant="danger" size="sm" onClick={() => openDelete(p)}>
-                      Delete
-                    </Button>
-
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => openSold(p)}
-                      disabled={p.status !== "APPROVED"} // only allow sold when approved
-                      title={p.status !== "APPROVED" ? "Only approved properties can be sold" : ""}
-                    >
-                      Mark Sold
-                    </Button>
+            {list.map((p) => {
+              const rejectionNote =
+                p.status === "REJECTED" && p.rejectionReason ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                    Rejection reason: {p.rejectionReason}
                   </div>
-                }
-              />
-            ))}
+                ) : null;
+
+              return (
+                <PropertyCard
+                  key={p.id}
+                  property={p}
+                  footer={rejectionNote}
+                  actions={
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <div className="mr-2">{statusBadge(p.status)}</div>
+
+                      <Button variant="outline" size="sm" onClick={() => openEdit(p)} disabled={p.status === "SOLD"}>
+                        Edit
+                      </Button>
+
+                      <Button variant="danger" size="sm" onClick={() => openDelete(p)}>
+                        Delete
+                      </Button>
+
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => openSold(p)}
+                        disabled={p.status !== "APPROVED"} // only allow sold when approved
+                        title={p.status !== "APPROVED" ? "Only approved properties can be sold" : ""}
+                      >
+                        Mark Sold
+                      </Button>
+                    </div>
+                  }
+                />
+              );
+            })}
           </div>
         )}
       </Card>

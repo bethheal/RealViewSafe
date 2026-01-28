@@ -17,10 +17,17 @@ model User {
   passwordHash       String?
   phone              String?
   mustChangePassword Boolean       @default(false)
+  trialStartedAt     DateTime?
+  trialEndsAt        DateTime?
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  paystackCustomerCode String?
+  paystackSubscriptionCode String?
   accounts           Account[]
   agentProfile       AgentProfile?
   buyerProfile       BuyerProfile?
   roles              Role[]        @relation("RoleToUser")
+  adminAuditLogs     AuditLog[]    @relation("AuditLogAdmin")
+  termsAcceptances   TermsAcceptance[] @relation("UserTerms")
 }
 
 model Role {
@@ -104,6 +111,7 @@ model Property {
   price           Int
   location        String
   status          PropertyStatus          @default(PENDING)
+  listedByAdmin   Boolean                 @default(false)
   rejectionReason String?
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt
@@ -191,6 +199,34 @@ model Subscription {
   agent     AgentProfile @relation(fields: [agentId], references: [id])
 }
 
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AuditLogAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([entityType])
+  @@index([entityId])
+}
+
+model TermsAcceptance {
+  id         String   @id @default(uuid())
+  userId     String?
+  acceptedAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  user User? @relation("UserTerms", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
 enum AgentDocumentType {
   BUSINESS_PROOF
   ID_CARD
@@ -236,4 +272,10 @@ enum SubPlan {
   BASIC
   PRO
   PREMIUM
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
 }

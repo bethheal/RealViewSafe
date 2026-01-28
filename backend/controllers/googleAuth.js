@@ -23,11 +23,18 @@ export const googleAuth = async (req, res) => {
   let user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(trialStartedAt);
+    trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+
     user = await prisma.user.create({
       data: {
         email,
         fullName: name,
         emailVerified: true,
+        trialStartedAt,
+        trialEndsAt,
+        subscriptionStatus: "TRIAL",
         roles: { connect: { name: "BUYER" } }
       }
     });

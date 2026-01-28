@@ -1,7 +1,7 @@
-import React from 'react'
+import React from "react";
 import SearchCard from "./SearchCard";
 
-export default function Hero() {
+export default function Hero({ searchOptions, onSearch }) {
   return (
     <section id="home"
       className="relative scroll-mt-24 flex min-h-screen items-center justify-center bg-cover bg-center"
@@ -17,7 +17,7 @@ export default function Hero() {
           Real View <span className="text-orange-400">Estate</span>
         </h2>
 
-        <SearchCard />
+        <SearchCard options={searchOptions} onSearch={onSearch} />
       </div>
     </section>
   );

@@ -1,18 +1,27 @@
 import prisma from "../prisma/client.js";
 import { getAgentProfileByUserId } from "../services/user.service.js";
+import { getSubscriptionSnapshot } from "../services/subscription.service.js";
 
 export async function agentGetSubscription(req, res) {
   try {
     const agent = await getAgentProfileByUserId(req.user.id);
     if (!agent) return res.status(404).json({ message: "Agent profile not found" });
 
-    const sub = await prisma.subscription.findUnique({
-      where: { agentId: agent.id },
+    const snapshot = await getSubscriptionSnapshot(req.user.id);
+    if (!snapshot) return res.status(404).json({ message: "Subscription not found" });
+
+    return res.json({
+      plan: snapshot.plan,
+      expiresAt: snapshot.planExpiresAt,
+      planActive: snapshot.planActive,
+      subscriptionStatus: snapshot.subscriptionStatus,
+      trialStartedAt: snapshot.trialStartedAt,
+      trialEndsAt: snapshot.trialEndsAt,
+      trialActive: snapshot.trialActive,
+      trialDaysLeft: snapshot.trialDaysLeft,
+      paystackCustomerCode: snapshot.paystackCustomerCode,
+      paystackSubscriptionCode: snapshot.paystackSubscriptionCode,
     });
-
-    if (!sub) return res.json({ plan: "FREE", expiresAt: null });
-
-    res.json(sub);
   } catch (e) {
     res.status(500).json({ message: e.message || "Server error" });
   }
@@ -59,6 +68,14 @@ export async function adminAssignSubscription(req, res) {
       update: { plan, expiresAt },
       create: { agentId, plan, expiresAt },
     });
+
+    const agent = await prisma.agentProfile.findUnique({
+      where: { id: agentId },
+      select: { userId: true },
+    });
+    if (agent?.userId) {
+      await getSubscriptionSnapshot(agent.userId);
+    }
 
     res.json(sub);
   } catch (e) {

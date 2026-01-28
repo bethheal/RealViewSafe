@@ -21,7 +21,12 @@ export const agentService = {
   getDrafts: () => api.get("/agent/properties/drafts"),
 
   getLeads: () => api.get("/agent/leads"),
-  getSubscription: () => api.get("/agent/subscription"),
+  getSubscription: () => api.get("/subscriptions/agent"),
+
+  initializeSubscription: (plan) =>
+    api.post("/payments/paystack/initialize", { plan }),
+  verifySubscription: (reference) =>
+    api.get(`/payments/paystack/verify/${reference}`),
 
   getProfile: () => api.get("/agent/profile"),
   updateProfile: (data) => api.patch("/agent/profile", data),

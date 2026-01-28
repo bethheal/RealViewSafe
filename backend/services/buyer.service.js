@@ -28,13 +28,13 @@ export const getBuyerDashboard = async (userId) => {
         where: { buyerId: buyer.id },
         orderBy: { createdAt: "desc" },
         take: 6,
-        include: { property: true },
+        include: { property: { include: { images: true } } },
       }),
       prisma.propertyPurchase.findMany({
         where: { buyerId: buyer.id },
         orderBy: { createdAt: "desc" },
         take: 6,
-        include: { property: true },
+        include: { property: { include: { images: true } } },
       }),
     ]);
 
@@ -49,6 +49,7 @@ export async function browseApprovedProperties() {
   const properties = await prisma.property.findMany({
     where: { status: "APPROVED" },
     include: {
+      images: true,
       agent: {
         include: {
           user: { select: { fullName: true, phone: true, email: true } },
@@ -61,35 +62,29 @@ export async function browseApprovedProperties() {
 
   // Priority sort (active subs first)
   const now = new Date();
-  properties.sort((a, b) => {
-    const aSub = a.agent?.subscription;
-    const bSub = b.agent?.subscription;
+  const score = (sub) => {
+    const active = sub?.expiresAt && new Date(sub.expiresAt) > now;
+    if (!active) return 1;
+    return planPriority(sub.plan);
+  };
 
-    const aActive = aSub?.expiresAt && new Date(aSub.expiresAt) > now;
-    const bActive = bSub?.expiresAt && new Date(bSub.expiresAt) > now;
+  const enriched = properties.map((p) => {
+    const sub = p.agent?.subscription;
+    const active = sub?.expiresAt && new Date(sub.expiresAt) > now;
+    return {
+      ...p,
+      featured: Boolean(active && sub?.plan === "PREMIUM"),
+    };
+  });
 
-    const aScore = aActive ? planPriority(aSub.plan) : 1;
-    const bScore = bActive ? planPriority(bSub.plan) : 1;
-
+  enriched.sort((a, b) => {
+    const aScore = score(a.agent?.subscription);
+    const bScore = score(b.agent?.subscription);
     if (bScore !== aScore) return bScore - aScore;
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
-  // Normalize output for your cards
-  return properties.map((p) => ({
-    id: p.id,
-    title: p.title,
-    location: p.location,
-    price: p.price,
-    status: p.status,
-    featured: (() => {
-      const sub = p.agent?.subscription;
-      const active = sub?.expiresAt && new Date(sub.expiresAt) > now;
-      return active && sub.plan === "PREMIUM";
-    })(),
-    agentName: p.agent?.user?.fullName,
-    agentPhone: p.agent?.user?.phone,
-  }));
+  return enriched;
 }
 
 export async function saveProperty(userId, propertyId) {
@@ -101,11 +96,11 @@ export async function saveProperty(userId, propertyId) {
   if (!prop || prop.status !== "APPROVED") throw new Error("Property unavailable");
 
 // in BuyerService.saveProperty or route handler logic
-await prisma.savedProperty.upsert({
-  where: { buyerId_propertyId: { buyerId: buyer.id, propertyId } }, // requires unique compound index
-  create: { buyerId: buyer.id, propertyId },
-  update: {},
-});
+  await prisma.savedProperty.upsert({
+    where: { buyer_saved_unique: { buyerId: buyer.id, propertyId } },
+    create: { buyerId: buyer.id, propertyId },
+    update: {},
+  });
 
 
   return { ok: true };
@@ -117,17 +112,11 @@ export async function getSavedProperties(userId) {
 
   const saved = await prisma.savedProperty.findMany({
     where: { buyerId: buyer.id },
-    include: { property: true },
+    include: { property: { include: { images: true } } },
     orderBy: { id: "desc" },
   });
 
-  return saved.map((s) => ({
-    id: s.property.id,
-    title: s.property.title,
-    location: s.property.location,
-    price: s.property.price,
-    status: s.property.status,
-  }));
+  return saved.map((s) => s.property);
 }
 
 export async function buyProperty(userId, propertyId) {
@@ -157,16 +146,12 @@ export async function getPurchases(userId) {
 
   const purchases = await prisma.propertyPurchase.findMany({
     where: { buyerId: buyer.id },
-    include: { property: true },
+    include: { property: { include: { images: true } } },
     orderBy: { createdAt: "desc" },
   });
 
   return purchases.map((p) => ({
-    id: p.property.id,
-    title: p.property.title,
-    location: p.property.location,
-    price: p.property.price,
-    status: p.property.status,
+    ...p.property,
     purchasedAt: p.createdAt,
   }));
 }

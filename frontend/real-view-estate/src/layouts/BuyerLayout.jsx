@@ -3,6 +3,7 @@ import React from 'react';
 import { Outlet } from "react-router-dom";
 import { LayoutDashboard, Search, Heart, ShoppingBag, UserCircle } from "lucide-react";
 import SidebarShell from './Sidebarshell';
+import { logo } from "../assets";
 
 export default function BuyerLayout() {
   const links = [
@@ -15,7 +16,7 @@ export default function BuyerLayout() {
   
 
   return (
-    <SidebarShell title="Real View" links={links}>
+    <SidebarShell title="Real View" links={links} logoSrc={logo}>
       <Outlet />
     </SidebarShell>
   );

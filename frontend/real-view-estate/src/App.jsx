@@ -2,6 +2,7 @@
 import React, { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import TermsGate from "./components/TermsGate";
 
 import RootLayout from "./layouts/RootLayout";
 import AuthLayout from "./layouts/AuthLayout";
@@ -40,7 +41,7 @@ import AdminChangePassword from "./pages/admin/AdminChangePassword";
 
 function App() {
   return (
-    <>
+    <TermsGate>
       <Toaster
         position="top-center"
         toastOptions={{
@@ -102,6 +103,7 @@ function App() {
             <Route path="manage-properties" element={<ManageProperties />} />
             <Route path="leads" element={<PropertyLead />} />
             <Route path="subscription" element={<Subscription />} />
+            <Route path="billing" element={<Subscription />} />
             <Route path="profile" element={<AgentProfile />} />
           </Route>
 
@@ -123,12 +125,13 @@ function App() {
             <Route path="properties" element={<AdminProperties />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="add-property" element={<AddProperty />} />
 
             <Route path="change-password" element={<AdminChangePassword />} />
           </Route>
         </Routes>
       </Suspense>
-    </>
+    </TermsGate>
   );
 }
 

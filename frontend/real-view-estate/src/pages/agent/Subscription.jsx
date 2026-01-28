@@ -1,112 +1,268 @@
-
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
+import useSubscriptionStatus from "../../hooks/useSubscriptionStatus";
 import { agentService } from "../../services/agent.service";
 
 const plans = [
   {
-    key: "FREE",
-    title: "Free",
-    tone: "gray",
-    features: ["Basic listing visibility", "Standard support", "Manual follow-ups"],
-  },
-  {
     key: "BASIC",
-    title: "Basic",
-    tone: "blue",
-    features: ["Better visibility", "Appears more in featured", "Priority support"],
+    title: "Standard",
+    price: "GHS 150 / month",
+    description: "Perfect for agents starting to grow their presence.",
+    features: [
+      "Upload unlimited property listings",
+      "Agent profile on the platform",
+      "Direct inquiries from buyers & renters",
+      "Basic agent dashboard",
+      "Standard listing visibility",
+      "Verified agent badge",
+    ],
   },
   {
     key: "PREMIUM",
-    title: "Premium",
-    tone: "purple",
-    features: ["Top visibility", "Highest featured priority", "Fastest support"],
+    title: "Premium Agent Plan",
+    price: "GHS 250 / month",
+    description: "Best for active agents who want more exposure.",
+    highlight: true,
+    features: [
+      "Everything in Standard",
+      "Priority listing placement",
+      "Featured agent spotlight section",
+      "Higher visibility in search results",
+      "Monthly performance report",
+      "Premium agent badge",
+      "Faster support response",
+    ],
   },
 ];
 
-function daysLeft(expiresAt) {
-  if (!expiresAt) return null;
-  const d = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  return d;
-}
+const formatDate = (value) => {
+  if (!value) return "-";
+  return value.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
 export default function Subscription() {
-  const [sub, setSub] = useState(null);
+  const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const processedRefs = useRef(new Set());
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionTone, setActionTone] = useState("info");
+  const [busyPlan, setBusyPlan] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const {
+    loading,
+    plan,
+    subscriptionStatus,
+    trialEndsAt,
+    trialActive,
+    trialDaysLeft,
+  } = useSubscriptionStatus();
+
+  const planLabel = useMemo(() => {
+    if (plan === "BASIC") return "Standard";
+    if (plan === "PREMIUM") return "Premium";
+    return "Free";
+  }, [plan]);
+
+  const statusTone = useMemo(() => {
+    if (subscriptionStatus === "ACTIVE") {
+      if (plan === "PREMIUM") return "purple";
+      if (plan === "BASIC") return "orange";
+      return "green";
+    }
+    if (subscriptionStatus === "EXPIRED") return "red";
+    if (trialActive) return "yellow";
+    return "gray";
+  }, [plan, subscriptionStatus, trialActive]);
+
+  const statusLabel = useMemo(() => {
+    if (subscriptionStatus === "ACTIVE") {
+      return `${planLabel} (Active)`;
+    }
+    if (trialActive) {
+      return `Trial • ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`;
+    }
+    return "Trial expired";
+  }, [planLabel, subscriptionStatus, trialActive, trialDaysLeft]);
+
+  const statusMessage = useMemo(() => {
+    if (subscriptionStatus === "ACTIVE") {
+      return `Your ${planLabel} plan is active. Billing renews monthly.`;
+    }
+    if (trialActive) {
+      return `Your free month ends on ${formatDate(trialEndsAt)}. Subscribe to keep posting properties.`;
+    }
+    return `Your free month ended on ${formatDate(trialEndsAt)}. Subscribe to continue.`;
+  }, [planLabel, subscriptionStatus, trialActive, trialEndsAt]);
+
+  const bannerClass = useMemo(() => {
+    if (actionTone === "success") return "border-green-200 bg-green-50 text-green-700";
+    if (actionTone === "error") return "border-red-200 bg-red-50 text-red-700";
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }, [actionTone]);
 
   useEffect(() => {
-    agentService.getSubscription().then((res) => setSub(res.data));
-  }, []);
+    const params = new URLSearchParams(location.search);
+    const reference = params.get("reference");
+    if (!reference) return;
+    if (processedRefs.current.has(reference)) return;
+    processedRefs.current.add(reference);
 
-  const current = sub?.plan || "FREE";
-  const left = useMemo(() => daysLeft(sub?.expiresAt), [sub?.expiresAt]);
-  const active = !!sub?.expiresAt && left != null && left > 0;
+    let alive = true;
+    setVerifyLoading(true);
+    setActionMessage("Verifying your Paystack payment...");
+    setActionTone("info");
+
+    agentService
+      .verifySubscription(reference)
+      .then(() => {
+        if (!alive) return;
+        setActionMessage("Payment verified. Your subscription is now active.");
+        setActionTone("success");
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setActionMessage(
+          err?.response?.data?.message || "Payment verification failed. Please contact support."
+        );
+        setActionTone("error");
+      })
+      .finally(() => {
+        if (!alive) return;
+        setVerifyLoading(false);
+        params.delete("reference");
+        navigate(
+          {
+            pathname: location.pathname,
+            search: params.toString() ? `?${params}` : "",
+          },
+          { replace: true }
+        );
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    if (subscriptionStatus === "ACTIVE" && !verifyLoading && actionTone !== "error") {
+      setActionMessage("");
+    }
+  }, [subscriptionStatus, verifyLoading, actionTone]);
+
+  const handleSubscribe = async (planKey) => {
+    if (!paystackPublicKey) {
+      window.alert("Missing Paystack public key. Set VITE_PAYSTACK_PUBLIC_KEY in the frontend .env.");
+      return;
+    }
+
+    setBusyPlan(planKey);
+    setActionMessage("");
+
+    try {
+      const res = await agentService.initializeSubscription(planKey);
+      const url = res?.data?.authorization_url;
+      if (!url) {
+        setActionMessage("Unable to start Paystack checkout. Try again.");
+        setActionTone("error");
+        return;
+      }
+      window.location.href = url;
+    } catch (err) {
+      setActionMessage(
+        err?.response?.data?.message || "Unable to start Paystack checkout."
+      );
+      setActionTone("error");
+    } finally {
+      setBusyPlan(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Subscription</h1>
-          <p className="text-gray-600 mt-1">Plans control featured priority and visibility.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Billing</h1>
+          <p className="text-gray-600 mt-1">
+            Choose a plan to keep posting and get more exposure.
+          </p>
         </div>
-        <Badge tone={plans.find((p) => p.key === current)?.tone || "gray"}>{current}</Badge>
+        {!loading && <Badge tone={statusTone}>{statusLabel}</Badge>}
       </div>
 
-      <Card title="Your Status" subtitle="Expiry and current plan">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-sm text-gray-600 font-semibold">Current plan</p>
-            <p className="text-2xl font-extrabold text-gray-900">{current}</p>
-            <p className="text-sm text-gray-700 mt-1">
-              {current === "FREE"
-                ? "You’re on Free. Upgrade for more visibility."
-                : active
-                ? `Active • ${left} day(s) left`
-                : "Expired • Contact admin to renew"}
-            </p>
-          </div>
+      {actionMessage && (
+        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${bannerClass}`}>
+          {actionMessage}
+        </div>
+      )}
 
-          <Button onClick={() => alert("Hook Paystack later / admin flow")}>
-            Upgrade Plan
+      <Card title="Billing Summary" subtitle="Trial status and renewal info">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-600 font-semibold">Status</p>
+            <p className="text-xl font-extrabold text-gray-900">{statusLabel}</p>
+            <p className="text-sm text-gray-700 mt-2">{statusMessage}</p>
+          </div>
+          <Button onClick={() => handleSubscribe("BASIC")} disabled={verifyLoading || busyPlan}>
+            {subscriptionStatus === "ACTIVE" ? "Manage billing" : "Subscribe now"}
           </Button>
         </div>
       </Card>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid lg:grid-cols-2 gap-5">
         {plans.map((p) => {
-          const isCurrent = p.key === current;
+          const isCurrent = subscriptionStatus === "ACTIVE" && plan === p.key;
           return (
             <div
               key={p.key}
-              className={`rounded-2xl border shadow-sm p-4 bg-white/70 backdrop-blur-md
-                ${isCurrent ? "border-orange-300 ring-2 ring-orange-200" : "border-white/40"}
+              className={`rounded-2xl border p-6 shadow-sm bg-white/80 backdrop-blur-md transition
+                ${p.highlight ? "border-[#F37A2A] ring-2 ring-orange-200" : "border-gray-200"}
               `}
             >
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-extrabold text-gray-900">{p.title}</p>
-                <Badge tone={p.tone}>{p.key}</Badge>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-lg font-extrabold text-gray-900">{p.title}</p>
+                  <p className="text-sm text-gray-600 mt-1">{p.description}</p>
+                </div>
+                {p.highlight && <Badge tone="orange">Popular</Badge>}
               </div>
 
-              <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                {p.features.map((f) => (
-                  <li key={f} className="font-semibold">• {f}</li>
-                ))}
-              </ul>
-
-              <div className="mt-4">
+              <div className="mt-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Price</p>
+                  <p className="text-2xl font-extrabold text-gray-900">{p.price}</p>
+                </div>
                 <Button
                   variant={isCurrent ? "outline" : "primary"}
-                  onClick={() => alert("Upgrade flow later")}
-                  className="w-full"
+                  onClick={() => handleSubscribe(p.key)}
+                  disabled={isCurrent || busyPlan === p.key || verifyLoading}
                 >
-                  {isCurrent ? "Current Plan" : "Choose Plan"}
+                  {isCurrent ? "Current plan" : "Subscribe"}
                 </Button>
               </div>
+
+              <ul className="mt-5 space-y-2 text-sm text-gray-700 list-disc list-inside">
+                {p.features.map((f) => (
+                  <li key={f} className="font-semibold">{f}</li>
+                ))}
+              </ul>
             </div>
           );
         })}
       </div>
+
+      <p className="text-xs text-gray-500">
+        Paystack billing starts the day you subscribe. Your free month is managed inside the app.
+      </p>
     </div>
   );
 }
