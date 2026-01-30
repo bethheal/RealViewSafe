@@ -52,7 +52,7 @@ export default function AddProperty() {
   const missingProfileItems = useMemo(() => {
     if (isAdmin || profileLoading || profileError || !profile) return [];
     const missing = [];
-    if (!profile.phone) missing.push("Phone number");
+    if (!profile.phone) missing.push("Phone number (buyers cannot contact you without it)");
     if (!profile.company && !profile.fullName) missing.push("Business or personal name");
     if (!profile.verified) missing.push("Verification documents (upload in profile)");
     return missing;

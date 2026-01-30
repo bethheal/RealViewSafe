@@ -68,6 +68,7 @@ export const dashboard = async (req, res) => {
       sold,
       activeSubs,
       recentPending,
+      recentAgents,
     ] = await Promise.all([
       prisma.agentProfile.count(),
       prisma.buyerProfile.count(),
@@ -92,12 +93,21 @@ export const dashboard = async (req, res) => {
         orderBy: { createdAt: "desc" },
         take: 6,
       }),
+      prisma.agentProfile.findMany({
+        include: {
+          user: { select: { fullName: true, email: true, phone: true } },
+          documents: { orderBy: { createdAt: "desc" }, take: 3 },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
     ]);
 
     return res.json({
       data: {
         stats: { agents, buyers, pending, approved, rejected, sold, activeSubs },
         recentPending,
+        recentAgents,
       },
     });
   } catch (err) {

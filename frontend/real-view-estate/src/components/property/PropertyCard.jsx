@@ -11,7 +11,7 @@ const statusTone = (s) => {
   return "gray";
 };
 
-export default function PropertyCard({ property, actions, footer }) {
+export default function PropertyCard({ property, actions, footer, onClick }) {
   const firstImage = Array.isArray(property?.images) ? property.images[0] : null;
   const rawImage =
     (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
@@ -19,9 +19,27 @@ export default function PropertyCard({ property, actions, footer }) {
     "";
   const imageUrl =
     resolveMediaUrl(rawImage) || "https://via.placeholder.com/800x500?text=Property";
+  const clickable = typeof onClick === "function";
 
   return (
-    <div className="bg-white/80 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl overflow-hidden">
+    <div
+      className={`bg-white/80 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl overflow-hidden ${
+        clickable ? "cursor-pointer hover:shadow-md transition-shadow" : ""
+      }`}
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick?.(e);
+              }
+            }
+          : undefined
+      }
+    >
       <div className="relative">
         <img
           src={imageUrl}
@@ -53,7 +71,11 @@ export default function PropertyCard({ property, actions, footer }) {
           </p>
         </div>
 
-        {actions && <div className="pt-2 flex flex-wrap gap-2">{actions}</div>}
+        {actions && (
+          <div className="pt-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+            {actions}
+          </div>
+        )}
         {footer && <div className="pt-3 border-t border-gray-100">{footer}</div>}
       </div>
     </div>

@@ -1,8 +1,13 @@
 import React from "react";
 
 import { formatGhs, resolveMediaUrl } from "../lib/media";
+import { REALVIEW_CONTACT } from "../constants/realviewContact";
+import { useAuth } from "../context/AuthContext";
+
+const cleanPhone = (phone) => String(phone || "").replace(/\D/g, "");
 
 export default function PropertyModal({ property, onClose }) {
+  const { user } = useAuth();
   if (!property) return null;
 
   const firstImage = Array.isArray(property?.images) ? property.images[0] : null;
@@ -12,6 +17,13 @@ export default function PropertyModal({ property, onClose }) {
     "";
   const imageUrl =
     resolveMediaUrl(rawImage) || "https://via.placeholder.com/1200x800?text=Property";
+
+  const isAdminListing = Boolean(property?.listedByAdmin);
+  const agentPhone = property?.agent?.user?.phone || "";
+  const isRealViewContact = isAdminListing;
+  const contactPhone = isRealViewContact ? REALVIEW_CONTACT.phone : agentPhone;
+  const canShowContact = Boolean(user);
+  const hasContactPhone = Boolean(cleanPhone(contactPhone));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -45,9 +57,41 @@ export default function PropertyModal({ property, onClose }) {
               {formatGhs(property.price)}
             </p>
 
-            <button className="rounded-xl bg-[#8B6F2F] px-6 py-3 font-semibold text-white hover:bg-[#7a6128]">
-              Contact Agent
-            </button>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              {!canShowContact ? (
+                <>
+                  <p className="text-sm text-gray-600 font-semibold">
+                    Please log in or sign up to view contact details.
+                  </p>
+                  <div className="flex gap-2">
+                    <a
+                      href="/login"
+                      className="rounded-xl bg-[#8B6F2F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7a6128]"
+                    >
+                      Login
+                    </a>
+                    <a
+                      href="/signup"
+                      className="rounded-xl border border-[#8B6F2F] px-4 py-2 text-sm font-semibold text-[#8B6F2F] hover:bg-[#f7f2e8]"
+                    >
+                      Sign up
+                    </a>
+                  </div>
+                </>
+              ) : hasContactPhone ? (
+                <div className="text-sm text-gray-700 font-semibold text-right">
+                  <div>{isRealViewContact ? "Real View Contact" : "Agent Contact"}</div>
+                  <div className="text-[#8B6F2F]">{contactPhone}</div>
+                  {isRealViewContact && (
+                    <div className="text-xs text-gray-500">{REALVIEW_CONTACT.email}</div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-red-600 font-semibold">
+                  Agent phone not available yet. Please check back later.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
