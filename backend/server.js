@@ -47,7 +47,6 @@ const corsOptions = {
 
 // MUST be first
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 /* =========================
    BODY PARSERS
