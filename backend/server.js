@@ -1,11 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
-if (!paystackSecretKey) {
-  console.warn("PAYSTACK_SECRET_KEY is not set in backend/.env");
-}
-
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -22,26 +17,48 @@ import paymentsRoutes from "./routes/payments.routes.js";
 
 const app = express();
 
+/* =========================
+   CORS CONFIG (FIXED)
+========================= */
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://realviewsafe.onrender.com",
   "https://realviewfrontend.onrender.com",
+  "https://realviewgh.com",
 ];
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("CORS blocked"));
-    },
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+const corsOptions = {
+  origin(origin, callback) {
+    // allow requests with no origin (Postman, mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// MUST be first
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
+/* =========================
+   BODY PARSERS
+========================= */
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+/* =========================
+   STATIC FILES
+========================= */
 
 app.use(
   "/uploads",
@@ -55,16 +72,16 @@ app.use(
         res.setHeader("Content-Type", "image/webp");
       }
 
-      // ✅ helps Chrome allow cross-origin images
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-
-      // optional
       res.setHeader("Cache-Control", "public, max-age=0");
     },
   }),
 );
 
-// routes
+/* =========================
+   ROUTES
+========================= */
+
 app.use("/api/auth", authRoutes);
 app.use("/api/agent", agentRoutes);
 app.use("/api/buyer", buyerRoutes);
@@ -74,6 +91,10 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/terms", termsRoutes);
 app.use("/api/payments", paymentsRoutes);
 
+/* =========================
+   HEALTH CHECKS
+========================= */
+
 app.get("/", (req, res) => {
   res.send("✅ RealViewEstate API is running");
 });
@@ -82,6 +103,10 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "API healthy" });
 });
 
+/* =========================
+   START SERVER
+========================= */
+
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
@@ -89,7 +114,9 @@ async function startServer() {
     await prisma.$connect();
     console.log("✅ Database connected successfully");
 
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT}`),
+    );
   } catch (error) {
     console.error("❌ Database connection failed", error);
     process.exit(1);
