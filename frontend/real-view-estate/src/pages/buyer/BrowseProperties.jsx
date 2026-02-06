@@ -8,6 +8,7 @@ import PropertyCard from "../../components/property/PropertyCard";
 import buyerService from "../../services/buyer.service";
 import { REALVIEW_CONTACT } from "../../constants/realviewContact";
 import { formatGhs, resolveMediaUrl } from "../../lib/media";
+import Seo from "../../components/Seo";
 
 const cleanPhone = (phone) => String(phone || "").replace(/\D/g, "");
 const placeholderImage = "https://via.placeholder.com/900x600?text=Property";
@@ -108,6 +109,11 @@ export default function BrowseProperties() {
 
   return (
     <div className="space-y-6">
+      <Seo
+        title="Browse Properties — RealViewEstate"
+        description="Browse verified property listings in Accra — land, houses and offices for sale and rent. Filter by location, price, and type."
+        pathname="/properties"
+      />
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Browse Properties</h1>
         <p className="text-gray-600 mt-1">Explore approved listings.</p>

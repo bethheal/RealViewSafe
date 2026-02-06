@@ -8,6 +8,7 @@ import Hero from "../components/Hero";
 import Footer from "../components/Footer";
 import api from "../lib/api";
 import AboutSection from "../components/AboutSection";
+import Seo from "../components/Seo";
 
 export default function Home() {
   const [allProperties, setAllProperties] = useState([]);
@@ -122,6 +123,11 @@ export default function Home() {
 
   return (
     <>
+      <Seo
+        title="Find Land, Houses & Offices in Accra"
+        description="Explore verified land, houses and office listings across Accra. Buy or rent with confidence — Real View Estate connects you with trusted sellers and agents."
+        pathname="/"
+      />
       <Navbar />
       <Hero searchOptions={searchOptions} onSearch={handleSearch} />
       <AboutSection />

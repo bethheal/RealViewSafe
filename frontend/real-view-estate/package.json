@@ -6,7 +6,8 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "prebuild": "node ./scripts/validate-env.js && node ./scripts/generate-sitemap.js"
     },
     "dependencies": {
         "@react-oauth/google": "^0.13.4",
@@ -22,6 +23,8 @@
         "react-redux": "^9.2.0",
         "react-router-dom": "^6.30.3",
         "tailwindcss": "^4.1.18"
+        ,
+        "react-helmet-async": "^2.2.0"
     },
     "devDependencies": {
         "@vitejs/plugin-react": "^5.0.0",

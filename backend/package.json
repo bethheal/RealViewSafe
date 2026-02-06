@@ -4,7 +4,9 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "start:prod": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,11 @@
     "multer": "^2.0.2",
     "prisma": "^6.19.2",
     "resend": "^6.7.0"
+    ,
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.7.0",
+    "pino": "^8.20.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

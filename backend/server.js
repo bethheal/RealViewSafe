@@ -14,8 +14,17 @@ import propertyRoutes from "./routes/property.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
 import termsRoutes from "./routes/terms.routes.js";
 import paymentsRoutes from "./routes/payments.routes.js";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import logger, { expressLogger } from "./utils/logger.js";
+import { requestIdMiddleware } from "./middleware/requestId.middleware.js";
+import { errorHandler } from "./middleware/error.middleware.js";
+import { validateEnv } from "./utils/env.js";
 
 const app = express();
+
+// validate critical env vars at startup
+validateEnv();
 
 /* =========================
    CORS CONFIG (FIXED)
@@ -45,15 +54,24 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-// MUST be first
+// MUST be first (CORS needs to run before other middlewares that depend on origin)
 app.use(cors(corsOptions));
+
+// attach a request id early
+app.use(requestIdMiddleware);
+
+// basic security headers
+app.use(helmet());
+
+// request logging
+app.use(expressLogger);
 
 /* =========================
    BODY PARSERS
 ========================= */
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 /* =========================
    STATIC FILES
@@ -72,7 +90,7 @@ app.use(
       }
 
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("Cache-Control", "public, max-age=0");
+      res.setHeader("Cache-Control", "public, max-age=3600");
     },
   }),
 );
@@ -82,6 +100,24 @@ app.use(
 ========================= */
 
 app.use("/api/auth", authRoutes);
+// rate limit auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many auth attempts; please try again later.",
+});
+app.use("/api/auth", authLimiter);
+// rate limit payment endpoints
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many payment requests; please try again later.",
+});
+app.use("/api/payments", paymentLimiter);
 app.use("/api/agent", agentRoutes);
 app.use("/api/buyer", buyerRoutes);
 app.use("/api/admin", adminRoutes);
@@ -89,6 +125,9 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/terms", termsRoutes);
 app.use("/api/payments", paymentsRoutes);
+
+// central error handler (should be last middleware)
+app.use(errorHandler);
 
 /* =========================
    HEALTH CHECKS

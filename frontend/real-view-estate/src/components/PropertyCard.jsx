@@ -20,7 +20,10 @@ export default function PropertyCard({ property, onView }) {
     >
       <img
         src={imageUrl}
-        alt={property.title}
+        alt={property.title || "Property image"}
+        loading="lazy"
+        width={800}
+        height={500}
         className="h-56 w-full rounded-t-2xl object-cover"
       />
 

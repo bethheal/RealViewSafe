@@ -1,5 +1,6 @@
 import React from "react";
 
+import Seo from "./Seo";
 import { formatGhs, resolveMediaUrl } from "../lib/media";
 import { REALVIEW_CONTACT } from "../constants/realviewContact";
 import { useAuth } from "../context/AuthContext";
@@ -27,6 +28,25 @@ export default function PropertyModal({ property, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <Seo
+        title={`${property.title} — RealViewEstate`}
+        description={property.description || `${property.title} located in ${property.location}.`}
+        pathname={`/properties/${property.id}`}
+        ogImage={imageUrl}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Offer",
+          price: property.price ? String(property.price) : undefined,
+          priceCurrency: "GHS",
+          url: (import.meta.env.VITE_SITE_URL || "https://realviewgh.com") + `/properties/${property.id}`,
+          itemOffered: {
+            "@type": "Product",
+            name: property.title,
+            description: property.description || "Property listing",
+            image: imageUrl,
+          },
+        }}
+      />
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl">
         <img
           src={imageUrl}

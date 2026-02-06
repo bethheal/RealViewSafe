@@ -2,6 +2,7 @@
 import React, { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import ErrorBoundary from "./components/ErrorBoundary";
 import TermsGate from "./components/TermsGate";
 
 import RootLayout from "./layouts/RootLayout";
@@ -41,21 +42,22 @@ import AdminChangePassword from "./pages/admin/AdminChangePassword";
 
 function App() {
   return (
-    <TermsGate>
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 7000,
-          style: {
-            background: "rgba(0,0,0,0.85)",
-            color: "#fff",
-            backdropFilter: "blur(8px)",
-          },
-        }}
-      />
+    <ErrorBoundary>
+      <TermsGate>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 7000,
+            style: {
+              background: "rgba(0,0,0,0.85)",
+              color: "#fff",
+              backdropFilter: "blur(8px)",
+            },
+          }}
+        />
 
-      <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
-        <Routes>
+        <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+          <Routes>
           {/* PUBLIC */}
           <Route element={<RootLayout />}>
             <Route index element={<Home />} />
@@ -131,7 +133,8 @@ function App() {
           </Route>
         </Routes>
       </Suspense>
-    </TermsGate>
+      </TermsGate>
+    </ErrorBoundary>
   );
 }
 
