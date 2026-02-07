@@ -450,5 +450,5 @@ RealViewSafe/
 
 ---
 
-**Contact:** devops@realviewgh.com | Version: 1.0 | Last Updated: Feb 6, 2026
+**Contact:** realview@realview.gh | Version: 1.0 | Last Updated: Feb 6, 2026
 

@@ -32,7 +32,7 @@ This audit covers **production hardening** across backend API, frontend SPA, dat
 | `RESEND_API_KEY` | `backend/utils/mailer.js` | Server | None | **YES if using email** | Resend email service API key (for password reset) |
 | `MAIL_FROM` | `backend/utils/mailer.js` | Server | None | **YES if email enabled** | "from" email address for emails (e.g., `noreply@realviewgh.com`) |
 | `GOOGLE_CLIENT_ID` | `backend/controllers/googleAuth.js` | Server | None | Optional | Google OAuth client ID for social login validation |
-| `BOOTSTRAP_ADMIN_EMAIL` | `backend/prisma/{seedAdmin,resetAdmin}.js` | Server | `admin@admin.com` | No | Initial admin account email for seed/reset scripts |
+| `BOOTSTRAP_ADMIN_EMAIL` | `backend/prisma/{seedAdmin,resetAdmin}.js` | Server | `admin.admin@realviewgh.com` | No | Initial admin account email for seed/reset scripts |
 | `BOOTSTRAP_ADMIN_NAME` | `backend/prisma/seedAdmin.js` | Server | `System Admin` | No | Initial admin account name |
 | `BOOTSTRAP_ADMIN_PASSWORD` | `backend/prisma/resetAdmin.js` | Server | `Admin@1234` | No | Initial admin password (should be changed immediately) |
 

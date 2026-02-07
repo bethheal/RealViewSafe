@@ -442,7 +442,7 @@ FINAL SIGN-OFF
 
 ---
 
-**For questions:** devops@realviewgh.com  
+**For questions:** realview@realview.gh  
 **Documentation:** See files in repo root  
 **Status:** ✅ APPROVED FOR PRODUCTION  
 **Date:** February 6, 2026

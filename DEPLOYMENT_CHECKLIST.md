@@ -378,6 +378,6 @@ git push --force origin main
 
 **Support Channels:**
 - Slack: #production-alerts
-- Email: devops@realviewgh.com
+- Email: realview@realview.gh
 - On-call: Check rotation schedule
 

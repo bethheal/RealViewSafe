@@ -93,11 +93,11 @@ export default function Footer() {
               </li>
               <li className="flex gap-3">
                 <Phone className="h-5 w-5 text-white" />
-                <span>+233 55 123 4567</span>
+                <span>0505692492</span>
               </li>
               <li className="flex gap-3">
                 <Mail className="h-5 w-5 text-white" />
-                <span>support@realview.com</span>
+                <span>realview@realview.gh</span>
               </li>
               <li className="flex gap-3">
                 <Globe className="h-5 w-5 text-white" />

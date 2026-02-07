@@ -44,7 +44,7 @@ MAIL_FROM="noreply@realviewgh.com"
 GOOGLE_CLIENT_ID="..."
 
 # Bootstrap admin account
-BOOTSTRAP_ADMIN_EMAIL="admin@example.com"
+BOOTSTRAP_ADMIN_EMAIL="admin.admin@realviewgh.com"
 BOOTSTRAP_ADMIN_NAME="System Admin"
 BOOTSTRAP_ADMIN_PASSWORD="ChangeMe@123"
 EOF
@@ -499,5 +499,5 @@ Proprietary © 2026 RealViewEstate. All rights reserved.
 
 ---
 
-**Questions?** Contact: devops@realviewgh.com
+**Questions?** Contact: realview@realview.gh
 
