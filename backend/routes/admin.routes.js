@@ -6,6 +6,7 @@ import {
   dashboard,
   listAgents,
   suspendAgent,
+  verifyAgent,
   listBuyersWithPurchases,
   listProperties,
   reviewProperty,
@@ -26,6 +27,7 @@ router.get("/dashboard", dashboard);
 // agents
 router.get("/agents", listAgents);
 router.patch("/agents/:id/suspend", suspendAgent);
+router.patch("/agents/:id/verify", verifyAgent);
 
 // buyers + purchases
 router.get("/buyers", listBuyersWithPurchases);

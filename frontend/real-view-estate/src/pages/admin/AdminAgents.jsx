@@ -35,6 +35,11 @@ export default function AdminAgents() {
     await load();
   };
 
+  const toggleVerify = async (agent) => {
+    await adminService.verifyAgent(agent.id, { verified: !agent.verified });
+    await load();
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,6 +59,7 @@ export default function AdminAgents() {
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Verified</th>
                   <th className="px-4 py-3">Suspended</th>
                   <th className="px-4 py-3">Plan</th>
                   <th className="px-4 py-3">Expires</th>
@@ -66,6 +72,11 @@ export default function AdminAgents() {
                   <tr key={a.id}>
                     <td className="px-4 py-4 font-bold">{a.user?.fullName}</td>
                     <td className="px-4 py-4">{a.user?.email}</td>
+                    <td className="px-4 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${a.verified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {a.verified ? "VERIFIED" : "PENDING"}
+                      </span>
+                    </td>
                     <td className="px-4 py-4">{a.suspended ? "YES" : "NO"}</td>
                     <td className="px-4 py-4">{a.subscription?.plan || "FREE"}</td>
                     <td className="px-4 py-4">
@@ -73,10 +84,18 @@ export default function AdminAgents() {
                         ? new Date(a.subscription.expiresAt).toLocaleDateString()
                         : "—"}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 space-x-2 flex">
+                      <Button
+                        onClick={() => toggleVerify(a)}
+                        variant={a.verified ? "danger" : "primary"}
+                        size="sm"
+                      >
+                        {a.verified ? "Reject" : "Approve"}
+                      </Button>
                       <Button
                         onClick={() => toggleSuspend(a)}
                         variant={a.suspended ? "primary" : "danger"}
+                        size="sm"
                       >
                         {a.suspended ? "Unsuspend" : "Suspend"}
                       </Button>

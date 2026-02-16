@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 async function main() {
-  const email = process.argv[2] || process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@admin.com";
+  const email = process.argv[2] || process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@realviewgh.com";
   const newPassword = process.argv[3] || process.env.BOOTSTRAP_ADMIN_PASSWORD || "Admin@1234";
 
   const user = await prisma.user.findUnique({ where: { email } });

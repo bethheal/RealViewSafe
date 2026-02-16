@@ -172,6 +172,39 @@ export const suspendAgent = async (req, res) => {
 };
 
 /**
+ * PATCH /admin/agents/:id/verify
+ * body: { verified: boolean }
+ */
+export const verifyAgent = async (req, res) => {
+  try {
+    const { verified } = req.body;
+
+    const updated = await prisma.agentProfile.update({
+      where: { id: req.params.id },
+      data: { verified: Boolean(verified) },
+      include: {
+        user: { select: { fullName: true, email: true } },
+        subscription: true,
+        documents: true,
+      },
+    });
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: verified ? "AGENT_APPROVED" : "AGENT_REJECTED",
+      entityType: "AgentProfile",
+      entityId: updated.id,
+      details: { verified: Boolean(verified) },
+    });
+
+    return res.json({ data: updated });
+  } catch (err) {
+    console.error("verifyAgent error:", err);
+    return res.status(500).json({ message: err.message || "Server error" });
+  }
+};
+
+/**
  * GET /admin/buyers
  * returns buyers + purchases + property + agent
  */

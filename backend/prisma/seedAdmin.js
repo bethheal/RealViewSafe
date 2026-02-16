@@ -9,8 +9,8 @@ async function ensureRole(roleName) {
 }
 
 async function main() {
-  const email = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@admin.com";
-  const fullName = process.env.BOOTSTRAP_ADMIN_NAME || "System Admin";
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@realviewgh.com";
+  const fullName = process.env.BOOTSTRAP_ADMIN_NAME || "Admin User";
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

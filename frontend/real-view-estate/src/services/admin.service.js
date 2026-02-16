@@ -18,6 +18,10 @@ const adminService = {
     return (await api.patch(`/admin/agents/${id}/suspend`, payload)).data;
   },
 
+  async verifyAgent(id, payload) {
+    return (await api.patch(`/admin/agents/${id}/verify`, payload)).data;
+  },
+
   async getBuyers() {
     return (await api.get("/admin/buyers")).data;
   },
