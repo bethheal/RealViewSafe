@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const rawBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const rawBase =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.MODE === "production" ? window.location.origin : "http://localhost:5000");
 
 const base = rawBase
   .replace(/\/+$/, "")        // remove trailing slashes
@@ -11,6 +13,13 @@ const api = axios.create({
 });
 
 console.log("API BASE URL =", api.defaults.baseURL);
+
+if (!import.meta.env.VITE_API_URL && import.meta.env.MODE === "production") {
+  console.warn(
+    "VITE_API_URL not set — using window.location.origin as API base.\n" +
+      "If your API is hosted on a different domain, set VITE_API_URL before building."
+  );
+}
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
