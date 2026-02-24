@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejecting, setRejecting] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [error, setError] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -55,9 +56,12 @@ export default function AdminDashboard() {
 
   const approve = async (id) => {
     setActionLoading(true);
+    setError("");
     try {
       await adminService.reviewProperty(id, { action: "APPROVED" });
       await load();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Failed to approve property.");
     } finally {
       setActionLoading(false);
     }
@@ -81,16 +85,23 @@ export default function AdminDashboard() {
     const reason = rejectReason.trim();
     if (!reason) return;
     setActionLoading(true);
+    setError("");
     try {
       await adminService.reviewProperty(rejecting.id, { action: "REJECTED", reason });
       await load();
       closeReject();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Failed to reject property.");
     } finally {
       setActionLoading(false);
     }
   };
 
   if (loading) return <div className="p-4">Loading...</div>;
+  // Show error if present
+  if (error) {
+    return <div className="p-4 text-red-700 bg-red-50 rounded-lg">{error}</div>;
+  }
 
   return (
     <div className="space-y-6">

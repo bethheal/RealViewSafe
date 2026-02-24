@@ -5,7 +5,7 @@ import Contact from "../components/Contact";
 import FAQ from "../components/FAQ";
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
-import Footer from "../components/Footer";
+// import Footer from "../components/Footer";
 import api from "../lib/api";
 import AboutSection from "../components/AboutSection";
 import Seo from "../components/Seo";
@@ -139,7 +139,7 @@ export default function Home() {
       />
       <FAQ />
       <Contact />
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 }

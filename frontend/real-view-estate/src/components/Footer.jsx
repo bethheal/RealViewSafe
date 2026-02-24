@@ -89,7 +89,7 @@ export default function Footer() {
             <ul className="space-y-4 text-white/80">
               <li className="flex gap-3">
                 <MapPin className="h-5 w-5 text-white" />
-                <span>12 Real Estate Ave, East Legon, Accra</span>
+                <span>GM190 Pomegranate ST, Kasoa</span>
               </li>
               <li className="flex gap-3">
                 <Phone className="h-5 w-5 text-white" />
@@ -97,11 +97,11 @@ export default function Footer() {
               </li>
               <li className="flex gap-3">
                 <Mail className="h-5 w-5 text-white" />
-                <span>realview@realview.gh</span>
+                <span>realview@realviewgh.com</span>
               </li>
               <li className="flex gap-3">
                 <Globe className="h-5 w-5 text-white" />
-                <span>www.realview.com</span>
+                <span>www.realviewgh.com</span>
               </li>
             </ul>
           </div>

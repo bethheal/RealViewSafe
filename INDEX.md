@@ -339,7 +339,7 @@ RealViewSafe/
 **Version:** 1.0  
 **Status:** ✅ Complete  
 **Date:** February 6, 2026  
-**Contact:** realview@realview.gh
+**Contact:**- realview@realviewgh.com
 
 ---
 

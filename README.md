@@ -24,7 +24,7 @@ npm install
 
 # Create .env file (copy from .env.example)
 cat > .env << EOF
-DATABASE_URL="postgresql://user:password@localhost:5432/realview_dev"
+DATABASE_URL="postgresql://user:password@localhost:5000/realview_dev"
 JWT_SECRET="$(openssl rand -base64 32)"
 APP_URL="http://localhost:5173"
 PORT=5000

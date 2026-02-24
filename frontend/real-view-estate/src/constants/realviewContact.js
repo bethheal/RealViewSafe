@@ -2,7 +2,7 @@ export const REALVIEW_CONTACT = {
   name: "Real View Estate & Construction Agency",
   phone: "0505692492",
   phoneDigits: "233505692492",
-  email: "realview@realview.gh",
+  email: "realview@realviewgh.com",
   website: "www.realview.com",
-  address: "12 Real Estate Ave, East Legon, Accra",
+  address: "GM190 Pomegranate ST, Kasoa, Ghana",
 };

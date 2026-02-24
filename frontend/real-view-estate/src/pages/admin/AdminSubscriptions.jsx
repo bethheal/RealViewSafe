@@ -10,8 +10,10 @@ export default function AdminSubscriptions() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await adminService.getSubscriptions();
-      setAgents(data || []);
+      const payload = await adminService.getSubscriptions();
+      // some endpoints return { data: [...] } while others return [...] directly
+      const list = Array.isArray(payload) ? payload : payload?.data;
+      setAgents(Array.isArray(list) ? list : []);
     } finally {
       setLoading(false);
     }
@@ -54,7 +56,7 @@ export default function AdminSubscriptions() {
               </thead>
 
               <tbody className="divide-y">
-                {agents.map((a) => (
+                {(Array.isArray(agents) ? agents : []).map((a) => (
                   <tr key={a.id}>
                     <td className="px-4 py-4 font-bold">{a.user?.fullName}</td>
                     <td className="px-4 py-4">{a.user?.email}</td>

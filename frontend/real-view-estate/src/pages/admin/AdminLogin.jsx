@@ -45,6 +45,7 @@ export default function AdminLogin() {
       }
     } catch (err) {
       setError(err?.response?.data?.message || "Login failed");
+      setLoading(false);
     }
   };
 

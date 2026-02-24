@@ -13,6 +13,7 @@ export default function AdminProperties() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejecting, setRejecting] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
@@ -34,9 +35,12 @@ export default function AdminProperties() {
 
   const approve = async (id) => {
     setActionLoading(true);
+    setError("");
     try {
       await adminService.reviewProperty(id, { action: "APPROVED" });
       await load();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Failed to approve property.");
     } finally {
       setActionLoading(false);
     }
@@ -60,15 +64,21 @@ export default function AdminProperties() {
     const reason = rejectReason.trim();
     if (!reason) return;
     setActionLoading(true);
+    setError("");
     try {
       await adminService.reviewProperty(rejecting.id, { action: "REJECTED", reason });
       await load();
       closeReject();
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || "Failed to reject property.");
     } finally {
       setActionLoading(false);
     }
   };
 
+  if (error) {
+    return <div className="p-4 text-red-700 bg-red-50 rounded-lg">{error}</div>;
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">

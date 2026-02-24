@@ -34,11 +34,11 @@ import AgentProfile from "./pages/agent/AgentProfile";
 import PropertyDraft from "./pages/agent/PropertyDrafts";
 import AdminBuyers from "./pages/admin/AdminBuyers";
 import AdminProperties from "./pages/admin/AdminProperties";
-import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminChangePassword from "./pages/admin/AdminChangePassword";  
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 
 function App() {
   return (

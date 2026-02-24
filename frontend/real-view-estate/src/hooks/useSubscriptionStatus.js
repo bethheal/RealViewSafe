@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { agentService } from "../services/agent.service";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -13,32 +13,30 @@ export default function useSubscriptionStatus() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await agentService.getSubscription();
+      const payload = res?.data?.data || res?.data || null;
+      setData(payload);
+      setError(false);
+      setErrorMessage("");
+    } catch (err) {
+      setData(null);
+      setError(true);
+      setErrorMessage(err?.response?.data?.message || "Unable to load subscription status.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
-
-    agentService
-      .getSubscription()
-      .then((res) => {
-        if (!alive) return;
-        setData(res?.data || null);
-        setError(false);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setData(null);
-        setError(true);
-      })
-      .finally(() => {
-        if (!alive) return;
-        setLoading(false);
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
+    refresh().catch(() => {
+      // refresh handles state transitions; this catch avoids unhandled promise warnings.
+    });
+  }, [refresh]);
 
   const trialStartedAt = useMemo(() => toDate(data?.trialStartedAt), [data?.trialStartedAt]);
   const trialEndsAt = useMemo(() => toDate(data?.trialEndsAt), [data?.trialEndsAt]);
@@ -68,6 +66,7 @@ export default function useSubscriptionStatus() {
     data,
     loading,
     error,
+    errorMessage,
     plan,
     planExpiresAt,
     subscriptionStatus,
@@ -76,5 +75,6 @@ export default function useSubscriptionStatus() {
     trialDaysLeft,
     trialActive,
     needsSubscription,
+    refresh,
   };
 }

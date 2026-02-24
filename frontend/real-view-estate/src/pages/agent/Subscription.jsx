@@ -5,43 +5,13 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import useSubscriptionStatus from "../../hooks/useSubscriptionStatus";
 import { agentService } from "../../services/agent.service";
-
-const plans = [
-  {
-    key: "BASIC",
-    title: "Standard",
-    price: "GHS 150 / month",
-    description: "Perfect for agents starting to grow their presence.",
-    features: [
-      "Upload unlimited property listings",
-      "Agent profile on the platform",
-      "Direct inquiries from buyers & renters",
-      "Basic agent dashboard",
-      "Standard listing visibility",
-      "Verified agent badge",
-    ],
-  },
-  {
-    key: "PREMIUM",
-    title: "Premium Agent Plan",
-    price: "GHS 250 / month",
-    description: "Best for active agents who want more exposure.",
-    highlight: true,
-    features: [
-      "Everything in Standard",
-      "Priority listing placement",
-      "Featured agent spotlight section",
-      "Higher visibility in search results",
-      "Monthly performance report",
-      "Premium agent badge",
-      "Faster support response",
-    ],
-  },
-];
+import { SUBSCRIPTION_PLANS } from "../../constants/subscriptionPlans";
 
 const formatDate = (value) => {
   if (!value) return "-";
-  return value.toLocaleDateString("en-US", {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -49,7 +19,6 @@ const formatDate = (value) => {
 };
 
 export default function Subscription() {
-  const paystackPublicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
   const location = useLocation();
   const navigate = useNavigate();
   const processedRefs = useRef(new Set());
@@ -59,11 +28,14 @@ export default function Subscription() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const {
     loading,
+    error,
+    errorMessage,
     plan,
     subscriptionStatus,
     trialEndsAt,
     trialActive,
     trialDaysLeft,
+    refresh,
   } = useSubscriptionStatus();
 
   const planLabel = useMemo(() => {
@@ -88,7 +60,7 @@ export default function Subscription() {
       return `${planLabel} (Active)`;
     }
     if (trialActive) {
-      return `Trial • ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`;
+      return `Trial - ${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left`;
     }
     return "Trial expired";
   }, [planLabel, subscriptionStatus, trialActive, trialDaysLeft]);
@@ -127,6 +99,7 @@ export default function Subscription() {
         if (!alive) return;
         setActionMessage("Payment verified. Your subscription is now active.");
         setActionTone("success");
+        refresh();
       })
       .catch((err) => {
         if (!alive) return;
@@ -151,7 +124,7 @@ export default function Subscription() {
     return () => {
       alive = false;
     };
-  }, [location.pathname, location.search, navigate]);
+  }, [location.pathname, location.search, navigate, refresh]);
 
   useEffect(() => {
     if (subscriptionStatus === "ACTIVE" && !verifyLoading && actionTone !== "error") {
@@ -160,17 +133,13 @@ export default function Subscription() {
   }, [subscriptionStatus, verifyLoading, actionTone]);
 
   const handleSubscribe = async (planKey) => {
-    if (!paystackPublicKey) {
-      window.alert("Missing Paystack public key. Set VITE_PAYSTACK_PUBLIC_KEY in the frontend .env.");
-      return;
-    }
-
     setBusyPlan(planKey);
     setActionMessage("");
+    setActionTone("info");
 
     try {
       const res = await agentService.initializeSubscription(planKey);
-      const url = res?.data?.authorization_url;
+      const url = res?.data?.authorization_url || res?.authorization_url;
       if (!url) {
         setActionMessage("Unable to start Paystack checkout. Try again.");
         setActionTone("error");
@@ -212,14 +181,29 @@ export default function Subscription() {
             <p className="text-xl font-extrabold text-gray-900">{statusLabel}</p>
             <p className="text-sm text-gray-700 mt-2">{statusMessage}</p>
           </div>
-          <Button onClick={() => handleSubscribe("BASIC")} disabled={verifyLoading || busyPlan}>
+          <Button
+            onClick={() => handleSubscribe("BASIC")}
+            disabled={verifyLoading || !!busyPlan || loading}
+          >
             {subscriptionStatus === "ACTIVE" ? "Manage billing" : "Subscribe now"}
           </Button>
         </div>
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-semibold">
+              {errorMessage || "Unable to fetch subscription status right now."}
+            </p>
+            <div className="mt-2">
+              <Button size="sm" variant="outline" onClick={refresh} disabled={loading}>
+                {loading ? "Retrying..." : "Retry"}
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-5">
-        {plans.map((p) => {
+        {SUBSCRIPTION_PLANS.map((p) => {
           const isCurrent = subscriptionStatus === "ACTIVE" && plan === p.key;
           return (
             <div
@@ -244,9 +228,9 @@ export default function Subscription() {
                 <Button
                   variant={isCurrent ? "outline" : "primary"}
                   onClick={() => handleSubscribe(p.key)}
-                  disabled={isCurrent || busyPlan === p.key || verifyLoading}
+                  disabled={isCurrent || busyPlan === p.key || verifyLoading || loading}
                 >
-                  {isCurrent ? "Current plan" : "Subscribe"}
+                  {busyPlan === p.key ? "Redirecting..." : isCurrent ? "Current plan" : "Subscribe"}
                 </Button>
               </div>
 
@@ -266,3 +250,4 @@ export default function Subscription() {
     </div>
   );
 }
+
