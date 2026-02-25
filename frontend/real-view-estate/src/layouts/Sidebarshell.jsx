@@ -1,7 +1,7 @@
 // Sidebarshell.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, Camera, Trash2, Loader2 } from "lucide-react";
+import { Menu, X, LogOut, Camera, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -60,6 +60,28 @@ export default function SidebarShell({ title, links, children, logoSrc, logoAlt 
     if (roleNames.includes("BUYER")) return "/login";
     return "/login";
   }, [user]);
+
+  // Determine dashboard path based on current route and user role
+  const getDashboardPath = useMemo(() => {
+    const currentPath = location.pathname;
+    
+    if (currentPath.includes("/agent/")) return "/agent/dashboard";
+    if (currentPath.includes("/buyer/")) return "/buyer/dashboard";
+    if (currentPath.includes("/admin/")) return "/admin/dashboard";
+    
+    return "/agent/dashboard";
+  }, [location.pathname]);
+
+  // Show back button only on mobile and not on dashboard pages
+  const showBackButton = useMemo(() => {
+    const currentPath = location.pathname;
+    const dashboardPaths = ["/agent/dashboard", "/buyer/dashboard", "/admin/dashboard"];
+    return !dashboardPaths.includes(currentPath);
+  }, [location.pathname]);
+
+  const handleBackClick = () => {
+    navigate(getDashboardPath);
+  };
 
   const handleLogout = () => {
     if (logout) logout();
@@ -312,13 +334,24 @@ export default function SidebarShell({ title, links, children, logoSrc, logoAlt 
         <div className="mb-6 bg-white/70 backdrop-blur-md border border-white/40 shadow-sm rounded-2xl px-4 py-3 flex items-center justify-between">
           {/* LEFT */}
           <div className="flex items-center gap-3">
-            <button
-              className="lg:hidden p-2 rounded-xl hover:bg-gray-100"
-              onClick={() => setOpen(true)}
-              aria-label="Open menu"
-            >
-              <Menu />
-            </button>
+            {showBackButton ? (
+              <button
+                className="lg:hidden p-2 rounded-xl hover:bg-gray-100 transition"
+                onClick={handleBackClick}
+                aria-label="Go back to dashboard"
+                title="Back to dashboard"
+              >
+                <ArrowLeft size={20} className="text-gray-700" />
+              </button>
+            ) : (
+              <button
+                className="lg:hidden p-2 rounded-xl hover:bg-gray-100 transition"
+                onClick={() => setOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
+            )}
 
             <div className="flex items-center gap-3">
               {AvatarBlock}
