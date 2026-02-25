@@ -1,5 +1,27 @@
 import prisma from "../prisma/client.js";
 import { getSubscriptionSnapshot } from "../services/subscription.service.js";
+import fs from "fs";
+import path from "path";
+
+/* ---------- file verification helper ---------- */
+function verifyUploadedFiles(files) {
+  if (!Array.isArray(files) || files.length === 0) return [];
+  
+  const uploadDir = path.join(process.cwd(), "uploads");
+  const verified = [];
+  
+  for (const file of files) {
+    const filePath = path.join(uploadDir, file.filename);
+    // Verify file actually exists on disk
+    if (fs.existsSync(filePath)) {
+      verified.push(file);
+    } else {
+      console.warn(`⚠️  Uploaded file not found on disk: ${file.filename}`);
+    }
+  }
+  
+  return verified;
+}
 
 /* ---------------- helpers ---------------- */
 const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
@@ -383,7 +405,15 @@ export const addAdminProperty = async (req, res) => {
 
     const furnishing = normalizeFurnishing({ furnished, semiFurnished, unfurnished });
     const files = Array.isArray(req.files) ? req.files : [];
-    const imageCreates = files.map((file) => ({ url: `/uploads/${file.filename}` }));
+    
+    // ✅ Verify files actually exist on disk before saving to DB
+    const verifiedFiles = verifyUploadedFiles(files);
+    
+    if (verifiedFiles.length === 0 && files.length > 0) {
+      return res.status(500).json({ message: "File upload failed - files were not persisted on server" });
+    }
+    
+    const imageCreates = verifiedFiles.map((file) => ({ url: `/uploads/${file.filename}` }));
 
     const created = await prisma.property.create({
       data: {
