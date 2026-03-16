@@ -61,7 +61,13 @@ app.use(cors(corsOptions));
 app.use(requestIdMiddleware);
 
 // basic security headers
-app.use(helmet());
+// Allow images/videos to be embedded cross-origin (frontend <-> api domains)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 // request logging
 app.use(expressLogger);
@@ -77,23 +83,41 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
    STATIC FILES
 ========================= */
 
-app.use(
-  "/uploads",
-  express.static(path.join(path.resolve(), "uploads"), {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith(".png")) {
-        res.setHeader("Content-Type", "image/png");
-      } else if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) {
-        res.setHeader("Content-Type", "image/jpeg");
-      } else if (filePath.endsWith(".webp")) {
-        res.setHeader("Content-Type", "image/webp");
-      }
+const uploadsDir = path.join(path.resolve(), "uploads");
+const uploadsStaticOptions = {
+  setHeaders(res, filePath) {
+    const lower = filePath.toLowerCase();
+    if (lower.endsWith(".png")) {
+      res.setHeader("Content-Type", "image/png");
+    } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+      res.setHeader("Content-Type", "image/jpeg");
+    } else if (lower.endsWith(".webp")) {
+      res.setHeader("Content-Type", "image/webp");
+    } else if (lower.endsWith(".gif")) {
+      res.setHeader("Content-Type", "image/gif");
+    } else if (lower.endsWith(".avif")) {
+      res.setHeader("Content-Type", "image/avif");
+    } else if (lower.endsWith(".mp4")) {
+      res.setHeader("Content-Type", "video/mp4");
+    } else if (lower.endsWith(".webm")) {
+      res.setHeader("Content-Type", "video/webm");
+    } else if (lower.endsWith(".mov")) {
+      res.setHeader("Content-Type", "video/quicktime");
+    } else if (lower.endsWith(".mkv")) {
+      res.setHeader("Content-Type", "video/x-matroska");
+    } else if (lower.endsWith(".avi")) {
+      res.setHeader("Content-Type", "video/x-msvideo");
+    } else if (lower.endsWith(".m4v")) {
+      res.setHeader("Content-Type", "video/x-m4v");
+    }
 
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.setHeader("Cache-Control", "public, max-age=3600");
-    },
-  }),
-);
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+  },
+};
+
+app.use("/uploads", express.static(uploadsDir, uploadsStaticOptions));
+app.use("/api/uploads", express.static(uploadsDir, uploadsStaticOptions));
 
 /* =========================
    ROUTES

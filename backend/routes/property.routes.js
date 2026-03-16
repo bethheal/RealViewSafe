@@ -37,7 +37,7 @@ router.post(
   "/agent/properties",
   protect,
   allowRoles("AGENT"),
-  upload.array("media", 10),
+  upload.array("media", 20),
   addProperty
 );
 
@@ -45,7 +45,7 @@ router.patch(
   "/agent/properties/:id",
   protect,
   allowRoles("AGENT"),
-  upload.array("media", 10),
+  upload.array("media", 20),
   updateProperty
 );
 

@@ -19,12 +19,32 @@ const storage = multer.diskStorage({
 });
 
 function fileFilter(req, file, cb) {
-  if (file.mimetype.startsWith("image/")) return cb(null, true);
-  cb(new Error("Only image uploads are allowed"));
+  if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
+    return cb(null, true);
+  }
+  if (file.mimetype === "application/octet-stream") {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const allowed = new Set([
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".webp",
+      ".gif",
+      ".avif",
+      ".mp4",
+      ".mov",
+      ".webm",
+      ".mkv",
+      ".avi",
+      ".m4v",
+    ]);
+    if (allowed.has(ext)) return cb(null, true);
+  }
+  cb(new Error("Only image and video uploads are allowed"));
 }
 
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
 });

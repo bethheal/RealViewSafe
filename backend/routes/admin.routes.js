@@ -12,6 +12,7 @@ import {
   reviewProperty,
   addAdminProperty,
   updateAdminProperty,
+  deleteAdminProperty,
   listSubscriptions,
   assignSubscription,
 } from "../controllers/admin.controller.js";
@@ -35,8 +36,9 @@ router.get("/buyers", listBuyersWithPurchases);
 // properties (all statuses; optional ?status=)
 router.get("/properties", listProperties);
 router.patch("/properties/:id/review", reviewProperty);
-router.post("/properties", upload.array("media", 10), addAdminProperty);
-router.patch("/properties/:id", upload.array("media", 10), updateAdminProperty);
+router.post("/properties", upload.array("media", 20), addAdminProperty);
+router.patch("/properties/:id", upload.array("media", 20), updateAdminProperty);
+router.delete("/properties/:id", deleteAdminProperty);
 
 // subscriptions
 router.get("/subscriptions", listSubscriptions);

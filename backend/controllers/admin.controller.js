@@ -561,6 +561,53 @@ export const updateAdminProperty = async (req, res) => {
 };
 
 /**
+ * DELETE /admin/properties/:id
+ * Admin can delete any property
+ */
+export const deleteAdminProperty = async (req, res) => {
+  try {
+    const propertyId = req.params.id;
+
+    const existing = await prisma.property.findUnique({
+      where: { id: propertyId },
+      include: { images: true },
+    });
+
+    if (!existing) return res.status(404).json({ message: "Property not found" });
+
+    await prisma.property.delete({ where: { id: propertyId } });
+
+    const uploadDir = path.join(process.cwd(), "uploads");
+    for (const img of existing.images || []) {
+      const rawUrl = img?.url || "";
+      if (!rawUrl.startsWith("/uploads/")) continue;
+      const filename = rawUrl.replace(/^\/uploads\//, "");
+      const filePath = path.join(uploadDir, filename);
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.warn(`Failed to delete file ${filePath}:`, err?.message || err);
+      }
+    }
+
+    await logAdminAction({
+      adminId: req.user.id,
+      action: "PROPERTY_DELETE_ADMIN",
+      entityType: "Property",
+      entityId: existing.id,
+      details: { title: existing.title },
+    });
+
+    return res.sendStatus(204);
+  } catch (err) {
+    console.error("deleteAdminProperty error:", err);
+    return res.status(500).json({ message: err.message || "Server error" });
+  }
+};
+
+/**
  * GET /admin/subscriptions
  * list agents + subscription
  */

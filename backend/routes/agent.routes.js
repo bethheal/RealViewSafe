@@ -33,7 +33,7 @@ agentRouter.post(
   protect,
   allowRoles("AGENT"),
   requireActiveSubscription,
-  upload.array("media", 10), // ✅ MUST match frontend key: "media"
+  upload.array("media", 20), // must match frontend key: "media"
   addProperty
 );
 
@@ -42,7 +42,7 @@ agentRouter.patch(
   protect,
   allowRoles("AGENT"),
   requireActiveSubscription,
-  upload.array("media", 10),
+  upload.array("media", 20),
   updateProperty
 );
 
