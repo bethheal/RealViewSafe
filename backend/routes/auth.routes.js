@@ -10,6 +10,10 @@ import { resetPasswordWithToken } from "../controllers/resetPass.js";
 
 import { protect } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
+import {
+  resolveCloudinaryFolder,
+  uploadFileToCloudinary,
+} from "../services/cloudinary.service.js";
 
 const router = express.Router();
 
@@ -70,7 +74,10 @@ router.patch("/me/avatar", protect, upload.single("avatar"), async (req, res) =>
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    const uploaded = await uploadFileToCloudinary(req.file, {
+      folder: resolveCloudinaryFolder("avatars"),
+    });
+    const avatarUrl = uploaded.url;
 
     // load user + roles to know where to save
     const me = await prisma.user.findUnique({

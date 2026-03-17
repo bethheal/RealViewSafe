@@ -1,26 +1,8 @@
 import prisma from "../prisma/client.js";
-import fs from "fs";
-import path from "path";
-
-/* ---------- file verification helper ---------- */
-function verifyUploadedFiles(files) {
-  if (!Array.isArray(files) || files.length === 0) return [];
-  
-  const uploadDir = path.join(process.cwd(), "uploads");
-  const verified = [];
-  
-  for (const file of files) {
-    const filePath = path.join(uploadDir, file.filename);
-    // Verify file actually exists on disk
-    if (fs.existsSync(filePath)) {
-      verified.push(file);
-    } else {
-      console.warn(`⚠️  Uploaded file not found on disk: ${file.filename}`);
-    }
-  }
-  
-  return verified;
-}
+import {
+  resolveCloudinaryFolder,
+  uploadFilesToCloudinary,
+} from "../services/cloudinary.service.js";
 
 /* ---------------- helpers ---------------- */
 const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
@@ -119,15 +101,11 @@ export async function addProperty(req, res) {
       return res.status(400).json({ message: "Invalid status for agent submission" });
     }
 
-    // ✅ Verify files actually exist on disk before saving to DB
     const files = Array.isArray(req.files) ? req.files : [];
-    const verifiedFiles = verifyUploadedFiles(files);
-    
-    if (verifiedFiles.length === 0 && files.length > 0) {
-      return res.status(500).json({ message: "File upload failed - files were not persisted on server" });
-    }
-    
-    const imageCreates = verifiedFiles.map((file) => ({ url: `/uploads/${file.filename}` }));
+    const uploads = await uploadFilesToCloudinary(files, {
+      folder: resolveCloudinaryFolder("properties"),
+    });
+    const imageCreates = uploads.map((item) => ({ url: item.url }));
 
     const created = await prisma.property.create({
       data: {
@@ -243,9 +221,14 @@ export async function updateProperty(req, res) {
     // add new uploaded images (optional)
     const files = Array.isArray(req.files) ? req.files : [];
     if (files.length > 0) {
-      data.images = {
-        create: files.map((file) => ({ url: `/uploads/${file.filename}` })),
-      };
+      const uploads = await uploadFilesToCloudinary(files, {
+        folder: resolveCloudinaryFolder("properties"),
+      });
+      if (uploads.length > 0) {
+        data.images = {
+          create: uploads.map((item) => ({ url: item.url })),
+        };
+      }
     }
 
     const updated = await prisma.property.update({

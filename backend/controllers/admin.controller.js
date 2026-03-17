@@ -2,26 +2,13 @@ import prisma from "../prisma/client.js";
 import { getSubscriptionSnapshot } from "../services/subscription.service.js";
 import fs from "fs";
 import path from "path";
+import {
+  deleteCloudinaryAssetByUrl,
+  resolveCloudinaryFolder,
+  uploadFilesToCloudinary,
+} from "../services/cloudinary.service.js";
 
-/* ---------- file verification helper ---------- */
-function verifyUploadedFiles(files) {
-  if (!Array.isArray(files) || files.length === 0) return [];
-  
-  const uploadDir = path.join(process.cwd(), "uploads");
-  const verified = [];
-  
-  for (const file of files) {
-    const filePath = path.join(uploadDir, file.filename);
-    // Verify file actually exists on disk
-    if (fs.existsSync(filePath)) {
-      verified.push(file);
-    } else {
-      console.warn(`⚠️  Uploaded file not found on disk: ${file.filename}`);
-    }
-  }
-  
-  return verified;
-}
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
 /* ---------------- helpers ---------------- */
 const toBool = (v) => v === true || v === "true" || v === "1" || v === 1;
@@ -405,15 +392,10 @@ export const addAdminProperty = async (req, res) => {
 
     const furnishing = normalizeFurnishing({ furnished, semiFurnished, unfurnished });
     const files = Array.isArray(req.files) ? req.files : [];
-    
-    // ✅ Verify files actually exist on disk before saving to DB
-    const verifiedFiles = verifyUploadedFiles(files);
-    
-    if (verifiedFiles.length === 0 && files.length > 0) {
-      return res.status(500).json({ message: "File upload failed - files were not persisted on server" });
-    }
-    
-    const imageCreates = verifiedFiles.map((file) => ({ url: `/uploads/${file.filename}` }));
+    const uploads = await uploadFilesToCloudinary(files, {
+      folder: resolveCloudinaryFolder("properties"),
+    });
+    const imageCreates = uploads.map((item) => ({ url: item.url }));
 
     const created = await prisma.property.create({
       data: {
@@ -534,9 +516,14 @@ export const updateAdminProperty = async (req, res) => {
 
     const files = Array.isArray(req.files) ? req.files : [];
     if (files.length > 0) {
-      data.images = {
-        create: files.map((file) => ({ url: `/uploads/${file.filename}` })),
-      };
+      const uploads = await uploadFilesToCloudinary(files, {
+        folder: resolveCloudinaryFolder("properties"),
+      });
+      if (uploads.length > 0) {
+        data.images = {
+          create: uploads.map((item) => ({ url: item.url })),
+        };
+      }
     }
 
     const updated = await prisma.property.update({
@@ -577,19 +564,22 @@ export const deleteAdminProperty = async (req, res) => {
 
     await prisma.property.delete({ where: { id: propertyId } });
 
-    const uploadDir = path.join(process.cwd(), "uploads");
     for (const img of existing.images || []) {
       const rawUrl = img?.url || "";
-      if (!rawUrl.startsWith("/uploads/")) continue;
-      const filename = rawUrl.replace(/^\/uploads\//, "");
-      const filePath = path.join(uploadDir, filename);
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+      if (rawUrl.startsWith("/uploads/")) {
+        const filename = rawUrl.replace(/^\/uploads\//, "");
+        const filePath = path.join(UPLOAD_DIR, filename);
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (err) {
+          console.warn(`Failed to delete file ${filePath}:`, err?.message || err);
         }
-      } catch (err) {
-        console.warn(`Failed to delete file ${filePath}:`, err?.message || err);
+        continue;
       }
+
+      await deleteCloudinaryAssetByUrl(rawUrl);
     }
 
     await logAdminAction({

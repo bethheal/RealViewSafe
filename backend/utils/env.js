@@ -3,6 +3,9 @@ const required = [
   "JWT_SECRET",
   "APP_URL",
   "PAYSTACK_SECRET_KEY",
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
 ];
 
 export function validateEnv() {
