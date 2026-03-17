@@ -66,6 +66,7 @@ export async function uploadFileToCloudinary(file, options = {}) {
   }
 
   const folder = options.folder || resolveCloudinaryFolder();
+  const shouldCleanup = options.cleanup !== false;
 
   try {
     const result = await cloudinary.uploader.upload(file.path, {
@@ -82,7 +83,9 @@ export async function uploadFileToCloudinary(file, options = {}) {
       resourceType: result.resource_type,
     };
   } finally {
-    await safeUnlink(file.path);
+    if (shouldCleanup) {
+      await safeUnlink(file.path);
+    }
   }
 }
 
