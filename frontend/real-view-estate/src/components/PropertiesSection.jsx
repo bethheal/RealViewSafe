@@ -2,20 +2,27 @@ import React, { useState } from "react";
 import PropertyCard from "./PropertyCard";
 import PropertyModal from "./PropertyModal";
 
-export default function PropertiesSection({ items = [], loading = false, emptyMessage }) {
+export default function PropertiesSection({
+  items = [],
+  loading = false,
+  emptyMessage,
+  title = "Available Properties",
+  subtitle = "Explore our latest listings across Ghana - find your dream home today.",
+  sectionId = "properties",
+}) {
   const [selected, setSelected] = useState(null);
   const list = Array.isArray(items) ? items : [];
 
   return (
     <>
-      <section id="properties" className="bg-[#fafafa] scroll-mt-24 py-20">
+      <section id={sectionId} className="bg-[#fafafa] scroll-mt-24 py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-14 text-center">
             <h2 className="text-3xl font-bold text-[#8B6F2F]">
-              Available Properties
+              {title}
             </h2>
             <p className="mt-3 text-gray-500">
-              Explore our latest listings across Ghana - find your dream home today.
+              {subtitle}
             </p>
           </div>
 

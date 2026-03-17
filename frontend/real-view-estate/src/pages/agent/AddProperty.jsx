@@ -26,8 +26,41 @@ const empty = {
   // ✅ store ONE furnishing choice
   furnishing: "UNFURNISHED", // FURNISHED | SEMI_FURNISHED | UNFURNISHED
 
-  media: [], // File[]
+  media: [], // File[] images + videos
   imageUrls: [], // URL images (optional)
+};
+
+const MAX_MEDIA_FILES = 20;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB per file
+const ALLOWED_EXTS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".avif",
+  ".mp4",
+  ".mov",
+  ".webm",
+  ".mkv",
+  ".avi",
+  ".m4v",
+]);
+
+const getFileExt = (name = "") => {
+  const idx = name.lastIndexOf(".");
+  if (idx === -1) return "";
+  return name.slice(idx).toLowerCase();
+};
+
+const isAllowedFile = (file) => {
+  const type = file?.type || "";
+  if (type.startsWith("image/") || type.startsWith("video/")) return true;
+  if (type === "application/octet-stream") {
+    const ext = getFileExt(file?.name || "");
+    return ALLOWED_EXTS.has(ext);
+  }
+  return false;
 };
 
 export default function AddProperty() {
@@ -146,7 +179,48 @@ export default function AddProperty() {
 
   const onPickMedia = (e) => {
     const files = Array.from(e.target.files || []);
-    setForm((p) => ({ ...p, media: [...p.media, ...files] }));
+    if (files.length === 0) return;
+
+    const accepted = [];
+    const rejected = [];
+
+    files.forEach((file) => {
+      if (!isAllowedFile(file)) {
+        rejected.push(`${file.name} (unsupported type)`);
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        rejected.push(`${file.name} (too large, max 50MB)`);
+        return;
+      }
+      accepted.push(file);
+    });
+
+    const previousCount = form.media.length;
+    const combinedCount = previousCount + accepted.length;
+    const overLimit = Math.max(0, combinedCount - MAX_MEDIA_FILES);
+
+    setForm((p) => {
+      const combined = [...p.media, ...accepted];
+      return { ...p, media: combined.slice(0, MAX_MEDIA_FILES) };
+    });
+
+    const messages = [];
+    if (rejected.length > 0) {
+      const preview = rejected.slice(0, 3).join(", ");
+      const suffix = rejected.length > 3 ? "..." : "";
+      messages.push(`Skipped ${rejected.length} file(s): ${preview}${suffix}`);
+    }
+    if (overLimit > 0) {
+      messages.push(`Only ${MAX_MEDIA_FILES} files allowed. ${overLimit} file(s) were ignored.`);
+    }
+    if (messages.length > 0) {
+      setModal({
+        open: true,
+        status: "error",
+        message: messages.join(" "),
+      });
+    }
   };
 
   const removeMedia = (idx) => {
@@ -401,14 +475,28 @@ export default function AddProperty() {
           </div>
 
           <div className="mt-4">
-            <label className="text-sm font-bold text-gray-700">Image Uploads</label>
-            <input type="file" multiple accept="image/*" onChange={onPickMedia} className="mt-2 block w-full text-sm" />
+            <label className="text-sm font-bold text-gray-700">Media Uploads (Images + Video)</label>
+            <p className="mt-1 text-xs text-gray-500 font-semibold">
+              Upload multiple images from different angles and optional video. Max 20 files.
+            </p>
+            <input
+              type="file"
+              multiple
+              accept="image/*,video/*"
+              onChange={onPickMedia}
+              className="mt-2 block w-full text-sm"
+            />
 
             {form.media.length > 0 && (
               <div className="mt-3 space-y-2">
                 {form.media.map((f, idx) => (
                   <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                    <p className="text-sm font-bold text-gray-800 truncate">{f.name}</p>
+                    <p className="text-sm font-bold text-gray-800 truncate">
+                      {f.name}{" "}
+                      <span className="text-xs text-gray-500">
+                        ({f.type?.startsWith("video/") ? "Video" : "Image"})
+                      </span>
+                    </p>
                     <button type="button" onClick={() => removeMedia(idx)} className="text-sm font-extrabold text-red-600">
                       Remove
                     </button>

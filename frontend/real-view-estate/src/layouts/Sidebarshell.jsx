@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, Camera, Trash2, Loader2, ArrowLeft } from "lucide-react";
 import api from "../lib/api";
+import { resolveMediaUrl } from "../lib/media";
 import { useAuth } from "../context/AuthContext";
 
 // ---------- helpers ----------
@@ -134,15 +135,10 @@ export default function SidebarShell({ title, links, children, logoSrc, logoAlt 
   }, [profile?.avatarUrl, user?.avatarUrl]);
 
   const resolvedAvatarUrl = useMemo(() => {
-  if (!avatarUrl) return "";
-  if (isValidUrl(avatarUrl)) return avatarUrl;
-
-  // remove any trailing slash from VITE_API_URL
-  const rawBase = import.meta.env.VITE_API_URL || "";
-  const base = rawBase.replace(/\/+$/, ""); // ✅ removes trailing /
-
-  return `${base}${avatarUrl}`; // avatarUrl already starts with "/"
-}, [avatarUrl]);
+    if (!avatarUrl) return "";
+    if (isValidUrl(avatarUrl)) return avatarUrl;
+    return resolveMediaUrl(avatarUrl);
+  }, [avatarUrl]);
 
 
   // ✅ stable final image src (no flicker)

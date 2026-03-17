@@ -1,7 +1,7 @@
 import React from "react";
 
 import Badge from "../ui/Badge";
-import { formatGhs, resolveMediaUrl } from "../../lib/media";
+import { formatGhs, pickPrimaryImageUrl } from "../../lib/media";
 
 const statusTone = (s) => {
   if (s === "APPROVED") return "green";
@@ -12,13 +12,10 @@ const statusTone = (s) => {
 };
 
 export default function PropertyCard({ property, actions, footer, onClick }) {
-  const firstImage = Array.isArray(property?.images) ? property.images[0] : null;
-  const rawImage =
-    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
-    property?.image ||
-    "";
-  const imageUrl =
-    resolveMediaUrl(rawImage) || "https://via.placeholder.com/800x500?text=Property";
+  const imageUrl = pickPrimaryImageUrl(
+    property,
+    "https://via.placeholder.com/800x500?text=Property"
+  );
   const clickable = typeof onClick === "function";
 
   return (

@@ -3,7 +3,7 @@ import adminService from "../../services/admin.service";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
-import { resolveMediaUrl } from "../../lib/media";
+import { extractImageUrls, extractVideoUrls, resolveMediaUrl } from "../../lib/media";
 
 const placeholderImage = "https://via.placeholder.com/800x500?text=Property";
 const isImageFile = (url) => /\.(png|jpe?g|gif|webp)$/i.test(url || "");
@@ -124,10 +124,8 @@ export default function AdminDashboard() {
               <div className="text-gray-500 text-sm">No pending properties.</div>
             ) : (
               recentPending.map((p) => {
-                const images = Array.isArray(p.images) ? p.images : [];
-                const imageUrls = images
-                  .map((img) => resolveMediaUrl(typeof img === "string" ? img : img?.url))
-                  .filter(Boolean);
+                const imageUrls = extractImageUrls(p);
+                const videoUrls = extractVideoUrls(p);
                 const heroImage = imageUrls[0] || placeholderImage;
 
                 return (
@@ -180,6 +178,11 @@ export default function AdminDashboard() {
                             className="h-14 w-20 rounded-lg object-cover border"
                           />
                         ))
+                      )}
+                      {videoUrls.length > 0 && (
+                        <span className="text-xs rounded-full bg-blue-50 px-2 py-1 font-semibold text-blue-700">
+                          {videoUrls.length} video file{videoUrls.length === 1 ? "" : "s"}
+                        </span>
                       )}
                     </div>
                   </div>

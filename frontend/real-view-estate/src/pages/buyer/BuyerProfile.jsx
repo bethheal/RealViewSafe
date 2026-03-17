@@ -4,6 +4,7 @@ import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import buyerService from "../../services/buyer.service";
+import { resolveMediaUrl } from "../../lib/media";
 
 function isValidUrl(u) {
   try {
@@ -29,13 +30,7 @@ export default function BuyerProfile() {
     const a = profile?.avatarUrl || "";
     if (!a) return "";
     if (isValidUrl(a)) return a;
-
-    // If it's /uploads/...
-    if (a.startsWith("/")) {
-      const base = import.meta.env.VITE_API_URL || "";
-      return base ? `${base}${a}` : a;
-    }
-    return a;
+    return resolveMediaUrl(a);
   }, [profile?.avatarUrl]);
 
   if (!profile) return <div className="text-gray-600 font-semibold">Loading...</div>;

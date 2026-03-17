@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const PLATFORM_POINTS = [
   "Affordable access to property listings across Ghana.",
@@ -14,7 +15,54 @@ const SERVICE_AREAS = [
   "Billboards and advertising spaces",
 ];
 
-export default function AboutSection() {
+export default function AboutSection({ compact = false, showLearnMore = false }) {
+  const summaryText =
+    "Real View helps you discover your new home or property across Ghana while connecting you with trusted construction experts.";
+
+  if (compact) {
+    return (
+      <section id="about" className="bg-white scroll-mt-24 py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs uppercase tracking-[0.35em] text-[#8B6F2F]/70">
+              Real View Estate and Construction Agency
+            </p>
+            <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
+              About Us
+            </h2>
+            <p className="mt-4 text-gray-600">{summaryText}</p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 text-left">
+              <div className="rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900">Mission</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Provide reliable housing and construction solutions that save clients time and stress.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-gray-900">Vision</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Become the trusted first choice for housing and property solutions in Ghana.
+                </p>
+              </div>
+            </div>
+
+            {showLearnMore && (
+              <div className="mt-8">
+                <Link
+                  to="/about-us"
+                  className="inline-flex items-center rounded-xl bg-[#8B6F2F] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#755b24]"
+                >
+                  Learn More
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="about" className="bg-white scroll-mt-24 py-20">
       <div className="mx-auto max-w-7xl px-6">
@@ -26,10 +74,8 @@ export default function AboutSection() {
             About Us
           </h2>
           <p className="mt-4 mx-auto max-w-3xl text-gray-600">
-            Real View helps you discover your new home or property across Ghana
-            while connecting you with trusted construction experts. Building on
-            trust, we deliver a seamless experience from first consultation to
-            final handover.
+            {summaryText} Building on trust, we deliver a seamless experience
+            from first consultation to final handover.
           </p>
         </div>
 

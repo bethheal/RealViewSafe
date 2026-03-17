@@ -7,7 +7,7 @@ import Badge from "../../components/ui/Badge";
 import PropertyCard from "../../components/property/PropertyCard";
 import buyerService from "../../services/buyer.service";
 import { REALVIEW_CONTACT } from "../../constants/realviewContact";
-import { formatGhs, resolveMediaUrl } from "../../lib/media";
+import { extractImageUrls, extractVideoUrls, formatGhs } from "../../lib/media";
 import Seo from "../../components/Seo";
 
 const cleanPhone = (phone) => String(phone || "").replace(/\D/g, "");
@@ -93,10 +93,8 @@ export default function BrowseProperties() {
 
   const closeDetails = () => setSelected(null);
 
-  const selectedImages = Array.isArray(selected?.images) ? selected.images : [];
-  const selectedImageUrls = selectedImages
-    .map((img) => resolveMediaUrl(typeof img === "string" ? img : img?.url))
-    .filter(Boolean);
+  const selectedImageUrls = selected ? extractImageUrls(selected) : [];
+  const selectedVideoUrls = selected ? extractVideoUrls(selected) : [];
 
   const heroImage = selectedImageUrls[0] || placeholderImage;
   const selectedIsAdminListing = Boolean(selected?.listedByAdmin);
@@ -209,6 +207,14 @@ export default function BrowseProperties() {
                       />
                     ))}
                   </div>
+                )}
+                {selectedVideoUrls.length > 0 && (
+                  <video
+                    controls
+                    preload="metadata"
+                    className="w-full rounded-xl border"
+                    src={selectedVideoUrls[0]}
+                  />
                 )}
               </div>
 

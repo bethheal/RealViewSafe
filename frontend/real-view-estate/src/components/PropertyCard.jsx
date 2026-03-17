@@ -1,15 +1,12 @@
 import React from "react";
 
-import { formatGhs, resolveMediaUrl } from "../lib/media";
+import { formatGhs, pickPrimaryImageUrl } from "../lib/media";
 
 export default function PropertyCard({ property, onView }) {
-  const firstImage = Array.isArray(property?.images) ? property.images[0] : null;
-  const rawImage =
-    (typeof firstImage === "string" ? firstImage : firstImage?.url) ||
-    property?.image ||
-    "";
-  const imageUrl =
-    resolveMediaUrl(rawImage) || "https://via.placeholder.com/800x500?text=Property";
+  const imageUrl = pickPrimaryImageUrl(
+    property,
+    "https://via.placeholder.com/800x500?text=Property"
+  );
 
   return (
     <div

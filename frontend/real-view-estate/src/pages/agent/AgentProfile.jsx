@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import api from "../../lib/api";
+import { resolveMediaUrl } from "../../lib/media";
 import { agentService } from "../../services/agent.service";
 
 function strength(pw) {
@@ -50,12 +51,7 @@ export default function AgentProfile() {
     const a = profile?.avatarUrl || "";
     if (!a) return "";
     if (isValidUrl(a)) return a;
-
-    if (a.startsWith("/")) {
-      const base = import.meta.env.VITE_API_URL || "";
-      return base ? `${base}${a}` : a;
-    }
-    return a;
+    return resolveMediaUrl(a);
   }, [profile?.avatarUrl]);
 
   if (!profile) return <div className="text-gray-600 font-semibold">Loading...</div>;

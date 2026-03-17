@@ -50,6 +50,10 @@ const adminService = {
     });
   },
 
+  deleteProperty(id) {
+    return api.delete(`/admin/properties/${id}`);
+  },
+
   async getSubscriptions() {
     return (await api.get("/admin/subscriptions")).data;
   },

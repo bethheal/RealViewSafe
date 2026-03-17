@@ -15,6 +15,9 @@ import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
 import Home from "./pages/Home";
+import AboutUs from "./pages/AboutUs";
+import PropertiesPage from "./pages/Properties";
+import ListYourProperty from "./pages/ListYourProperty";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import RoleRoute from "./routes/RoleRoutes";
@@ -61,6 +64,9 @@ function App() {
           {/* PUBLIC */}
           <Route element={<RootLayout />}>
             <Route index element={<Home />} />
+            <Route path="about-us" element={<AboutUs />} />
+            <Route path="properties" element={<PropertiesPage />} />
+            <Route path="list-your-property" element={<ListYourProperty />} />
           </Route>
 
           {/* AUTH */}

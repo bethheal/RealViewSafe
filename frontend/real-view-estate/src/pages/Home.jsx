@@ -3,7 +3,6 @@ import WhyBest from "../components/WhyBest";
 import PropertiesSection from "../components/PropertiesSection";
 import Contact from "../components/Contact";
 import FAQ from "../components/FAQ";
-import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 // import Footer from "../components/Footer";
 import api from "../lib/api";
@@ -128,15 +127,15 @@ export default function Home() {
         description="Explore verified land, houses and office listings across Accra. Buy or rent with confidence — Real View Estate connects you with trusted sellers and agents."
         pathname="/"
       />
-      <Navbar />
       <Hero searchOptions={searchOptions} onSearch={handleSearch} />
-      <AboutSection />
-      <WhyBest />
       <PropertiesSection
         items={filtered}
         loading={loading}
         emptyMessage="No properties match your search."
       />
+      <AboutSection compact showLearnMore />
+      <WhyBest />
+    
       <FAQ />
       <Contact />
       {/* <Footer /> */}
